@@ -1,5 +1,4 @@
 #![allow(unused_variables)]
-#![feature(link_args)]
 
 extern crate libc;
 extern crate php;
@@ -9,7 +8,6 @@ use php::*;
 use zend::*;
 use php::info::*;
 
-#[link_args = "-Wl,-undefined,dynamic_lookup"]
 extern {
     pub fn php_printf(format: *const c_char , ...) -> size_t;
 }
