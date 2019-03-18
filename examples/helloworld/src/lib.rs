@@ -1,45 +1,39 @@
 #![allow(unused_variables)]
 
 use libc::*;
-use php::*;
-use php::zend::*;
 use php::info::*;
+use php::zend::*;
+use php::*;
 
-extern {
-    pub fn php_printf(format: *const c_char , ...) -> size_t;
+extern "C" {
+    pub fn php_printf(format: *const c_char, ...) -> size_t;
 }
 
 #[no_mangle]
-pub extern fn php_module_startup(type_: c_int, module_number: c_int) -> c_int {
-   0 
+pub extern "C" fn php_module_startup(type_: c_int, module_number: c_int) -> c_int {
+    0
 }
 
 #[no_mangle]
-pub extern fn php_module_shutdown(type_: c_int, module_number: c_int) -> c_int {
-   0 
+pub extern "C" fn php_module_shutdown(type_: c_int, module_number: c_int) -> c_int {
+    0
 }
 
 #[no_mangle]
-pub extern fn php_module_info() {
+pub extern "C" fn php_module_info() {
     print_table_start();
     print_table_row(&["A demo PHP extension written in Rust", "enabled"]);
     print_table_end();
 }
 
 #[no_mangle]
-pub extern fn helloworld(data: &ExecuteData, retval: &Value) {
-    unsafe {
-        php_printf(c_str!("Hello world, Rust!"))
-    };
+pub extern "C" fn helloworld(data: &ExecuteData, retval: &Value) {
+    unsafe { php_printf(c_str!("Hello world, Rust!")) };
 }
 
 #[no_mangle]
-pub extern fn get_module() -> *mut zend::Module {
-
-    let mut entry = Box::new(zend::Module::new(
-        c_str!("demo"),
-        c_str!("0.1.0-dev"),
-    ));
+pub extern "C" fn get_module() -> *mut zend::Module {
+    let mut entry = Box::new(zend::Module::new(c_str!("demo"), c_str!("0.1.0-dev")));
 
     entry.set_info_func(php_module_info);
 

@@ -1,14 +1,14 @@
+use libc::*;
 use std;
 use std::mem;
-use libc::*;
 
-type StartupFunc = extern fn (type_: c_int, module_number: c_int) -> c_int;
-type ShutdownFunc = extern fn (type_: c_int, module_number: c_int) -> c_int;
-type InfoFunc = extern fn () ;
-type GlobalsCtorFunc = extern fn (global: *const c_void) -> c_void;
-type GlobalsDtorFunc = extern fn (global: *const c_void) -> c_void;
-type PostDeactivateFunc = extern fn () -> c_int;
-type HandlerFunc = extern fn (execute_data: &ExecuteData, retval: &Value);
+type StartupFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
+type ShutdownFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
+type InfoFunc = extern "C" fn();
+type GlobalsCtorFunc = extern "C" fn(global: *const c_void) -> c_void;
+type GlobalsDtorFunc = extern "C" fn(global: *const c_void) -> c_void;
+type PostDeactivateFunc = extern "C" fn() -> c_int;
+type HandlerFunc = extern "C" fn(execute_data: &ExecuteData, retval: &Value);
 
 pub struct ExecuteData {}
 pub struct Value {}
@@ -16,16 +16,21 @@ pub struct ModuleDep {}
 
 #[repr(C)]
 pub struct ArgInfo {
-	name: *const c_char,
-	class_name: *const c_char,
-	type_hint: c_uchar,
-	pass_by_reference: c_uchar,
-	allow_null: c_uchar,
-	is_variadic: c_uchar,
-} 
+    name: *const c_char,
+    class_name: *const c_char,
+    type_hint: c_uchar,
+    pass_by_reference: c_uchar,
+    allow_null: c_uchar,
+    is_variadic: c_uchar,
+}
 
 impl ArgInfo {
-    pub fn new(name: *const c_char, allow_null: c_uchar, is_variadic: c_uchar, by_reference: c_uchar) -> ArgInfo {
+    pub fn new(
+        name: *const c_char,
+        allow_null: c_uchar,
+        is_variadic: c_uchar,
+        by_reference: c_uchar,
+    ) -> ArgInfo {
         ArgInfo {
             name: name,
             class_name: std::ptr::null(),
@@ -39,11 +44,11 @@ impl ArgInfo {
 
 #[repr(C)]
 pub struct Function {
-	fname: *const c_char,
+    fname: *const c_char,
     handler: Option<HandlerFunc>,
-	arg_info: *const  ArgInfo,
-	num_args: u32,
-	flags: u32,
+    arg_info: *const ArgInfo,
+    num_args: u32,
+    flags: u32,
 }
 
 impl Function {
@@ -57,7 +62,11 @@ impl Function {
         }
     }
 
-    pub fn new_with_args(name: *const c_char, handler: HandlerFunc, args: Box<[ArgInfo]>) -> Function {
+    pub fn new_with_args(
+        name: *const c_char,
+        handler: HandlerFunc,
+        args: Box<[ArgInfo]>,
+    ) -> Function {
         let num_args = args.len() as u32;
 
         Function {
@@ -78,7 +87,6 @@ impl Function {
             flags: 0,
         }
     }
-
 }
 
 pub struct INI {}

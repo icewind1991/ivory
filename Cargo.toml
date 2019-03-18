@@ -9,7 +9,7 @@ repository = "https://github.com/rethinkphp/php-rs"
 edition = "2018"
 
 [dependencies]
-libc = "0.2.0"
+libc = "0.2.50"
 
 [lib]
 name = "php"

@@ -1,7 +1,7 @@
 use libc::*;
 use std::ffi::CString;
 
-extern {
+extern "C" {
     pub fn php_info_print_table_start();
     pub fn php_info_print_table_row(num_cols: c_int, ...) -> c_void;
     pub fn php_info_print_table_end();
@@ -29,4 +29,3 @@ pub fn print_table_start() {
 pub fn print_table_end() {
     unsafe { php_info_print_table_end() }
 }
-
