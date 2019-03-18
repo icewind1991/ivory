@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 libc = "0.2.50"
-php-rs = { path = "../.." }
+php-rs = { path = "../..", version = "0.1.0" }
 
 [lib]
 name = "helloworld"

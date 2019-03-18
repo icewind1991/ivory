@@ -12,5 +12,5 @@ edition = "2018"
 libc = "0.2.50"
 
 [lib]
-name = "php"
+name = "php_rs"
 

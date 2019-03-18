@@ -1,7 +1,7 @@
 use libc::*;
-use php::info::*;
-use php::zend::*;
-use php::*;
+use php_rs::info::{print_table_start, print_table_row, print_table_end};
+use php_rs::zend::*;
+use php_rs::*;
 
 extern "C" {
     pub fn php_printf(format: *const c_char, ...) -> size_t;
@@ -35,16 +35,15 @@ pub extern "C" fn get_module() -> *mut zend::Module {
 
     entry.set_info_func(php_module_info);
 
-    let args = Box::new([
-        ArgInfo::new(1 as *const c_char, 0, 0, 0),
+    let args = vec![
         ArgInfo::new(c_str!("name"), 0, 0, 0),
-    ]);
+        ArgInfo::new(c_str!("foo"), 0, 0, 0),
+    ];
 
-    let funcs = Box::new([
+    let funcs = vec![
         Function::new(c_str!("helloworld"), helloworld),
         Function::new_with_args(c_str!("helloworld2"), helloworld, args),
-        Function::end(),
-    ]);
+    ];
 
     entry.set_functions(funcs);
 

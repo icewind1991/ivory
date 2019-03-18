@@ -1,6 +1,7 @@
-use libc::*;
 use std;
 use std::mem;
+
+use libc::*;
 
 type StartupFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
 type ShutdownFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
@@ -11,7 +12,9 @@ type PostDeactivateFunc = extern "C" fn() -> c_int;
 type HandlerFunc = extern "C" fn(execute_data: &ExecuteData, retval: &Value);
 
 pub struct ExecuteData {}
+
 pub struct Value {}
+
 pub struct ModuleDep {}
 
 #[repr(C)]
@@ -32,12 +35,12 @@ impl ArgInfo {
         by_reference: c_uchar,
     ) -> ArgInfo {
         ArgInfo {
-            name: name,
+            name,
             class_name: std::ptr::null(),
             type_hint: 0,
             pass_by_reference: by_reference,
-            allow_null: allow_null,
-            is_variadic: is_variadic,
+            allow_null,
+            is_variadic,
         }
     }
 }
@@ -65,20 +68,26 @@ impl Function {
     pub fn new_with_args(
         name: *const c_char,
         handler: HandlerFunc,
-        args: Box<[ArgInfo]>,
+        mut args: Vec<ArgInfo>,
     ) -> Function {
         let num_args = args.len() as u32;
+
+        let arg_count = ArgInfo::new(num_args as *const c_char, 0, 0, 0);
+        args.insert(0, arg_count);
+
+        let arg_ptr = args.as_ptr();
+        mem::forget(args);
 
         Function {
             fname: name,
             handler: Some(handler),
-            arg_info: Box::into_raw(args) as *const ArgInfo,
-            num_args: num_args - 1,
+            arg_info: arg_ptr,
+            num_args,
             flags: 0,
         }
     }
 
-    pub fn end() -> Function {
+    fn end() -> Function {
         Function {
             fname: std::ptr::null(),
             handler: None,
@@ -128,14 +137,14 @@ impl Module {
             zts: 0,
             ini_entry: std::ptr::null(),
             deps: std::ptr::null(),
-            name: name,
+            name,
             functions: std::ptr::null(),
             module_startup_func: None,
             module_shutdown_func: None,
             request_startup_func: None,
             request_shutdown_func: None,
             info_func: None,
-            version: version,
+            version,
             globals_size: 0,
             globals_ptr: std::ptr::null(),
             globals_ctor: None,
@@ -161,8 +170,10 @@ impl Module {
         self.info_func = Some(func);
     }
 
-    pub fn set_functions(&mut self, funcs: Box<[Function]>) {
-        self.functions = Box::into_raw(funcs) as *const Function;
+    pub fn set_functions(&mut self, mut funcs: Vec<Function>) {
+        funcs.push(Function::end());
+        self.functions = funcs.as_ptr();
+        mem::forget(funcs);
     }
 }
 
