@@ -1,11 +1,8 @@
 #![allow(unused_variables)]
 
-extern crate libc;
-extern crate php;
-
 use libc::*;
 use php::*;
-use zend::*;
+use php::zend::*;
 use php::info::*;
 
 extern {
