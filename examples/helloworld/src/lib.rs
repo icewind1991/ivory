@@ -1,5 +1,3 @@
-#![allow(unused_variables)]
-
 use libc::*;
 use php::info::*;
 use php::zend::*;
@@ -10,12 +8,12 @@ extern "C" {
 }
 
 #[no_mangle]
-pub extern "C" fn php_module_startup(type_: c_int, module_number: c_int) -> c_int {
+pub extern "C" fn php_module_startup(_type: c_int, _module_number: c_int) -> c_int {
     0
 }
 
 #[no_mangle]
-pub extern "C" fn php_module_shutdown(type_: c_int, module_number: c_int) -> c_int {
+pub extern "C" fn php_module_shutdown(_type: c_int, _module_number: c_int) -> c_int {
     0
 }
 
@@ -27,7 +25,7 @@ pub extern "C" fn php_module_info() {
 }
 
 #[no_mangle]
-pub extern "C" fn helloworld(data: &ExecuteData, retval: &Value) {
+pub extern "C" fn helloworld(_data: &ExecuteData, _retval: &Value) {
     unsafe { php_printf(c_str!("Hello world, Rust!")) };
 }
 
