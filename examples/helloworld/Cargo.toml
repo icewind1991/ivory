@@ -5,7 +5,7 @@ authors = ["Jin Hu <bixuehujin@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-libc = "0.2.0"
+libc = "0.2.50"
 php-rs = { path = "../.." }
 
 [lib]
