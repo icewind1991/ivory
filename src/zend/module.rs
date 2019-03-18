@@ -2,6 +2,7 @@ use std;
 use std::mem;
 
 use libc::*;
+use std::ffi::{CString, CStr};
 
 type StartupFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
 type ShutdownFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
@@ -30,17 +31,17 @@ pub struct ArgInfo {
 impl ArgInfo {
     pub fn new(
         name: *const c_char,
-        allow_null: c_uchar,
-        is_variadic: c_uchar,
-        by_reference: c_uchar,
+        allow_null: bool,
+        is_variadic: bool,
+        by_reference: bool,
     ) -> ArgInfo {
         ArgInfo {
             name,
             class_name: std::ptr::null(),
             type_hint: 0,
-            pass_by_reference: by_reference,
-            allow_null,
-            is_variadic,
+            pass_by_reference: by_reference as c_uchar,
+            allow_null: allow_null as c_uchar,
+            is_variadic: is_variadic as c_uchar,
         }
     }
 }
@@ -72,7 +73,7 @@ impl Function {
     ) -> Function {
         let num_args = args.len() as u32;
 
-        let arg_count = ArgInfo::new(num_args as *const c_char, 0, 0, 0);
+        let arg_count = ArgInfo::new(num_args as *const c_char, false, false, false);
         args.insert(0, arg_count);
 
         let arg_ptr = args.as_ptr();

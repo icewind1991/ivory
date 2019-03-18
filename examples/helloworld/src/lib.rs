@@ -36,8 +36,8 @@ pub extern "C" fn get_module() -> *mut zend::Module {
     entry.set_info_func(php_module_info);
 
     let args = vec![
-        ArgInfo::new(c_str!("name"), 0, 0, 0),
-        ArgInfo::new(c_str!("foo"), 0, 0, 0),
+        ArgInfo::new(c_str!("name"), false, false, false),
+        ArgInfo::new(c_str!("foo"), false, false, false),
     ];
 
     let funcs = vec![
