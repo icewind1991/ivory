@@ -115,7 +115,7 @@ impl Module {
     pub fn new(name: *const c_char, version: *const c_char) -> Module {
         Module {
             size: mem::size_of::<Module>() as u16,
-            zend_api: 20151012,
+            zend_api: 20180731,
             zend_debug: 0,
             zts: 0,
             ini_entry: std::ptr::null(),
@@ -137,7 +137,7 @@ impl Module {
             type_: 0,
             handle: std::ptr::null(),
             module_number: 0,
-            build_id: c_str!("API20151012,NTS"),
+            build_id: c_str!("API20180731,NTS"),
         }
     }
 
