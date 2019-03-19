@@ -3,8 +3,7 @@ use std::mem;
 
 use libc::*;
 
-use crate::zend::function::Function;
-use std::ffi::{CString, CStr};
+use crate::zend::function::{Function, ArgInfo};
 
 pub(crate) type StartupFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
 pub(crate) type ShutdownFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
@@ -100,12 +99,17 @@ impl ModuleInternal {
 
 pub struct FunctionMeta {
     pub name: *const c_char,
-    pub arg_names: &'static [*const c_char]
+    pub func: HandlerFunc,
+    pub args: &'static [ArgInfo]
 }
 
 impl FunctionMeta {
-    pub fn into_function(self, func: HandlerFunc) -> Function {
-        Function::new(self.name, func)
+    pub fn as_function(&self) -> Function {
+        if self.args.len() == 0 {
+            Function::new(self.name, self.func)
+        } else {
+            Function::new_with_args(self.name, self.func, self.args)
+        }
     }
 }
 

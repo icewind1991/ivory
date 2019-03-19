@@ -2,17 +2,14 @@
 
 extern crate proc_macro;
 
+use core::fmt::Debug;
 use std::collections::HashMap;
 use std::process::Command;
-use core::fmt::Debug;
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use proc_macro2::token_stream::IntoIter;
 use quote::{quote, quote_spanned};
-use syn::{
-    Attribute, AttributeArgs, Data, Expr, ExprStruct, Fields, FieldValue, Ident, Item, ItemFn, Lit, LitStr,
-    Meta, parse2, parse_macro_input, parse_quote, parse_str, Pat, Path,
-};
+use syn::{Attribute, AttributeArgs, Data, Expr, ExprStruct, Fields, FieldValue, FnArg, Ident, Item, ItemFn, Lit, LitStr, Meta, parse2, parse_macro_input, parse_quote, parse_str, Pat, Path, Type};
 use syn::parse_quote::parse;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -48,6 +45,12 @@ fn export_fn(item: ItemFn) -> TokenStream {
         unimplemented!("generics are not supported for exported functions");
     }
 
+    let arg_defs = decl.inputs.into_iter()
+        .map(get_arg_info)
+        .map(|(name, _type, is_ref)| {
+        quote!(::ivory::zend::ArgInfo::new(::ivory::c_str!(#name), false, false, #is_ref))
+    });
+
     quote! {
         #[no_mangle]
         pub extern "C" fn #name(data: &ExecuteData, retval: &Value) {
@@ -55,8 +58,26 @@ fn export_fn(item: ItemFn) -> TokenStream {
         }
 
         const #meta_name: ::ivory::zend::FunctionMeta = ::ivory::zend::FunctionMeta{
-            name: {concat!(#name_str, "\0").as_ptr() as *const ::libc::c_char}
+            name: {concat!(#name_str, "\0").as_ptr() as *const ::libc::c_char},
+            func: #name,
+            args: &[ #(#arg_defs),*]
         };
+    }
+}
+
+fn get_arg_info(arg: FnArg) -> (String, Type, bool) {
+    match arg {
+        FnArg::Captured(cap) => {
+            let arg_type = cap.ty;
+            match cap.pat {
+                Pat::Ident(ident_pat) => {
+                    (ident_pat.ident.to_string(), arg_type, ident_pat.by_ref.is_some())
+                },
+                Pat::Ref(ref_pat) => unimplemented!(),
+                _ => panic!()
+            }
+        },
+        _ => panic!("only normal function arguments are supported")
     }
 }
 
@@ -162,7 +183,7 @@ fn get_function_names(struct_def: TokenStream) -> Vec<String> {
                         match tree {
                             TokenTree::Ident(ident) => {
                                 ident.to_string()
-                            },
+                            }
                             _ => panic!()
                         }
                     }).collect()
@@ -192,11 +213,9 @@ fn get_field_expr(expr: Expr, field_name: &str) -> Option<Expr> {
 
 fn get_funcs(names: Vec<String>, span: Span) -> TokenStream {
     let definitions = names.into_iter().map(|name| {
-        // TODO: args
-        //let meta_name = Ident::new(&format!("FUNCTION_META_{}", name.to_uppercase()), span);
-        let func_ident = Ident::new(&name, span);
+        let meta_name = Ident::new(&format!("FUNCTION_META_{}", name.to_uppercase()), span);
         quote! {
-            ::ivory::zend::Function::new(::ivory::c_str!(#name), #func_ident),
+            #meta_name.as_function()
         }
     });
 

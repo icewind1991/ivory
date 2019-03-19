@@ -1,8 +1,10 @@
 use std;
 
 use libc::*;
+
 use crate::zend::HandlerFunc;
 
+#[derive(Clone)]
 #[repr(C)]
 pub struct ArgInfo {
     name: *const c_char,
@@ -14,7 +16,7 @@ pub struct ArgInfo {
 }
 
 impl ArgInfo {
-    pub fn new(
+    pub const fn new(
         name: *const c_char,
         allow_null: bool,
         is_variadic: bool,
@@ -31,6 +33,7 @@ impl ArgInfo {
     }
 }
 
+#[derive(Clone)]
 #[repr(C)]
 pub struct Function {
     fname: *const c_char,
@@ -54,14 +57,16 @@ impl Function {
     pub fn new_with_args(
         name: *const c_char,
         handler: HandlerFunc,
-        mut args: Vec<ArgInfo>,
+        mut args: &'static [ArgInfo],
     ) -> Function {
         let num_args = args.len() as u32;
+        let mut args_vec = Vec::new();
 
         let arg_count = ArgInfo::new(num_args as *const c_char, false, false, false);
-        args.insert(0, arg_count);
+        args_vec.push(arg_count);
+        args_vec.extend_from_slice(args);
 
-        let arg_ptr = Box::into_raw(args.into_boxed_slice()) as *const ArgInfo;
+        let arg_ptr = Box::into_raw(args_vec.into_boxed_slice()) as *const ArgInfo;
 
         Function {
             fname: name,
