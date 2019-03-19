@@ -1,0 +1,21 @@
+[package]
+name = "ivory-macro"
+version = "0.1.0"
+authors = ["Robin Appelman <robin@icewind.nl>"]
+keywords = ["php", "php-extension"]
+description = "A library to build PHP extensions in Rust."
+license = "MIT"
+repository = "https://github.com/rethinkphp/php-rs"
+edition = "2018"
+
+[dependencies]
+syn = { version  = "0.15", features = ["full"] }
+quote = "0.6"
+proc-macro2 = "0.4"
+
+[dev-dependencies]
+ivory = { version = "0.1", path = ".." }
+
+[lib]
+name = "ivory_macro"
+proc-macro = true

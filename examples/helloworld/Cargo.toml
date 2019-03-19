@@ -1,12 +1,12 @@
 [package]
-name = "helloworld"
+name = "ivory-helloworld"
 version = "0.1.0"
-authors = ["Jin Hu <bixuehujin@gmail.com>"]
+authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 
 [dependencies]
 libc = "0.2.50"
-php-rs = { path = "../..", version = "0.1.0" }
+ivory = { path = "../../ivory", version = "0.1.0" }
 
 [lib]
 name = "helloworld"
