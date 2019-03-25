@@ -40,29 +40,31 @@ impl ExecuteData {
         }
     }
 
-    pub fn args(&self) -> ArgIterator {
+    pub fn args<'a>(&'a self) -> ArgIterator<'a> {
         ArgIterator {
             base: self.get_arg_base(),
             count: self.num_args(),
             item: 0,
+            lifetime: &()
         }
     }
 }
 
-pub struct ArgIterator {
+pub struct ArgIterator<'a> {
     base: *const ZVal,
     count: u32,
     item: u32,
+    lifetime: &'a ()
 }
 
-impl Iterator for ArgIterator {
-    type Item = ZVal;
+impl<'a> Iterator for ArgIterator<'a> {
+    type Item = &'a ZVal;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.item < self.count {
             let val = unsafe { &*(self.base.add(self.item as usize)) };
             self.item += 1;
-            Some((*val).clone())
+            Some(val)
         } else {
             None
         }
