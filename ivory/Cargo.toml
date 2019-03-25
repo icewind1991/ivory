@@ -11,6 +11,7 @@ edition = "2018"
 [dependencies]
 libc = "0.2.50"
 ivory-macro = { version = "0.1", path = "macro" }
+ivory-sys = { version = "7.3", path = "sys" }
 
 [lib]
 name = "ivory"

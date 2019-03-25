@@ -53,7 +53,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
 
     quote! {
         #[no_mangle]
-        pub extern "C" fn #name(data: &ExecuteData, retval: &Value) {
+        pub extern "C" fn #name(data: *const ::ivory::zend::ExecuteData, retval: *mut ::ivory::zend::ZVal) {
             let result = #body;
         }
 

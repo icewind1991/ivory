@@ -4,6 +4,7 @@ use std::mem;
 use libc::*;
 
 use crate::zend::function::{Function, ArgInfo};
+use crate::zend::{ExecuteData, ZVal};
 
 pub(crate) type StartupFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
 pub(crate) type ShutdownFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
@@ -11,11 +12,7 @@ pub(crate) type InfoFunc = extern "C" fn();
 pub(crate) type GlobalsCtorFunc = extern "C" fn(global: *const c_void) -> c_void;
 pub(crate) type GlobalsDtorFunc = extern "C" fn(global: *const c_void) -> c_void;
 pub(crate) type PostDeactivateFunc = extern "C" fn() -> c_int;
-pub(crate) type HandlerFunc = extern "C" fn(execute_data: &ExecuteData, retval: &Value);
-
-pub struct ExecuteData {}
-
-pub struct Value {}
+pub(crate) type HandlerFunc = extern "C" fn(execute_data: *const ExecuteData, retval: *mut ZVal);
 
 pub struct ModuleDep {}
 
