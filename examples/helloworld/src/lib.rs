@@ -2,7 +2,7 @@ use std::intrinsics::transmute;
 
 use ivory::*;
 use ivory::externs::printf;
-use ivory::zend::{ExecuteData, ZVal};
+use ivory::zend::{ExecuteData, ZVal, PhpVal};
 
 #[ivory_export]
 fn hello_other(_other: String) {
@@ -18,9 +18,8 @@ fn hello_world() {
 #[no_mangle]
 pub extern "C" fn dump(data: *const ExecuteData, retval: *mut ZVal) {
     let data: &ExecuteData = unsafe { data.as_ref() }.unwrap();
-    let num = data.num_args();
     for arg in data.args() {
-        printf(format!("{}\n", unsafe { arg.as_i64() }));
+        printf(format!("{:?}\n", arg));
     }
 }
 

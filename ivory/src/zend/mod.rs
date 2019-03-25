@@ -1,6 +1,6 @@
 pub use self::module::*;
 pub use self::function::*;
-pub use self::zval::{ExecuteData, ZVal};
+pub use self::zval::{ExecuteData, ZVal, PhpVal};
 
 mod module;
 mod function;

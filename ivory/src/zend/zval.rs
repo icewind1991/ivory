@@ -1,20 +1,12 @@
+use std::collections::HashMap;
+use std::str;
 use std::intrinsics::transmute;
 use std::mem::size_of;
+use std::os::raw::c_char;
 
 use crate::externs::printf;
 
 use super::bindings::{zend_execute_data, zval};
-
-#[derive(Clone)]
-#[repr(transparent)]
-pub struct ZVal(zval);
-
-impl ZVal {
-    pub unsafe fn as_i64(&self) -> i64 {
-        self.0.value.lval as i64
-        //self.0.u1.type_info as i64
-    }
-}
 
 #[repr(transparent)]
 pub struct ExecuteData(zend_execute_data);
@@ -40,29 +32,27 @@ impl ExecuteData {
         }
     }
 
-    pub fn args<'a>(&'a self) -> ArgIterator<'a> {
-        ArgIterator {
+    pub fn args(&self) -> IntoArgIterator {
+        IntoArgIterator {
             base: self.get_arg_base(),
             count: self.num_args(),
             item: 0,
-            lifetime: &()
         }
     }
 }
 
-pub struct ArgIterator<'a> {
+pub struct IntoArgIterator {
     base: *const ZVal,
     count: u32,
     item: u32,
-    lifetime: &'a ()
 }
 
-impl<'a> Iterator for ArgIterator<'a> {
-    type Item = &'a ZVal;
+impl Iterator for IntoArgIterator {
+    type Item = PhpVal;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.item < self.count {
-            let val = unsafe { &*(self.base.add(self.item as usize)) };
+            let val = unsafe { (self.base.add(self.item as usize)).into() };
             self.item += 1;
             Some(val)
         } else {
@@ -71,8 +61,34 @@ impl<'a> Iterator for ArgIterator<'a> {
     }
 }
 
+#[repr(transparent)]
+pub struct ZVal(zval);
+
+impl ZVal {
+    pub fn get_type(&self) -> ZValType {
+        unsafe { self.0.u1.v.type_.into() }
+    }
+
+    pub unsafe fn as_i64(&self) -> i64 {
+        self.0.value.lval
+    }
+
+    pub unsafe fn as_f64(&self) -> f64 {
+        self.0.value.dval
+    }
+
+    pub unsafe fn as_str(&self) -> String {
+        let str = *self.0.value.str;
+        let len = str.len;
+        let base: *const c_char = &str.val[0];
+        let slice:&[u8] = std::slice::from_raw_parts(base as *const u8, len);
+        str::from_utf8_unchecked(slice).to_string()
+    }
+}
+
+#[derive(Debug)]
 #[repr(u8)]
-enum ZValType {
+pub enum ZValType {
     Undef = 0,
     Null = 1,
     False = 2,
@@ -86,6 +102,41 @@ enum ZValType {
     Reference = 10,
 }
 
-//impl From<ZVal> for Option<i64> {
-//    fn from(val: ZVal) -> Self {}
-//}
+impl From<u8> for ZValType {
+    fn from(val: u8) -> Self {
+        if val > 10 {
+            panic!("invalid zval type");
+        }
+        unsafe { transmute(val) }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum PhpVal {
+    Undef,
+    Null,
+    Bool(bool),
+    Long(i64),
+    Double(f64),
+    String(String),
+    Array(Vec<PhpVal>),
+    Object(HashMap<String, PhpVal>),
+    Resource(u64),
+    Reference(),
+}
+
+impl From<*const ZVal> for PhpVal {
+    fn from(val: *const ZVal) -> Self {
+        let val = unsafe { &*val };
+        match val.get_type() {
+            ZValType::Undef => PhpVal::Undef,
+            ZValType::Null => PhpVal::Null,
+            ZValType::False => PhpVal::Bool(false),
+            ZValType::True => PhpVal::Bool(true),
+            ZValType::Long => PhpVal::Long(unsafe { val.as_i64() }),
+            ZValType::Double => PhpVal::Double(unsafe { val.as_f64() }),
+            ZValType::String=> PhpVal::String(unsafe { val.as_str() }),
+            _ => PhpVal::Undef
+        }
+    }
+}
