@@ -20,7 +20,7 @@ use syn::token::Comma;
 pub fn ivory_export(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input: TokenStream = input.into();
     let item = syn::parse2::<Item>(input).unwrap();
-    let attr = parse_macro_input!(attr as AttributeArgs);
+    let _attr = parse_macro_input!(attr as AttributeArgs);
 
     let output = match item {
         Item::Fn(itemFn) => {
@@ -54,7 +54,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
         quote!(::ivory::zend::ArgInfo::new(::ivory::c_str!(#name), false, false, #is_ref))
     });
 
-    let arg_cast = args.iter().enumerate().map(|(index, (name, ty, _is_ref, span))| {
+    let arg_cast = args.iter().enumerate().map(|(_index, (name, ty, _is_ref, span))| {
         let arg_ident = Ident::new(name, span.clone());
         quote!(
             let #arg_ident: #ty = {
@@ -62,7 +62,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
                 match opt {
                     Some(val) => val,
                     None => {
-                        ::ivory::externs::printf("invalid argument type");
+                        ::ivory::externs::printf("invalid argument type,");
                         return;
                     }
                 }
@@ -75,7 +75,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
         pub extern "C" fn #name(data: *const ::ivory::zend::ExecuteData, retval: *mut ::ivory::zend::ZVal) {
             let data: &::ivory::zend::ExecuteData = unsafe { data.as_ref() }.unwrap();
             if data.num_args() != #arg_count {
-                ::ivory::externs::printf("unexpected number of arguments");
+                ::ivory::externs::printf(format!("unexpected number of arguments, expected {}, got {}", #arg_count, data.num_args()));
                 return;
             }
             let mut args: Vec<::ivory::zend::PhpVal> = data.args().collect();
@@ -99,7 +99,7 @@ fn get_arg_info(arg: FnArg) -> (String, Type, bool, Span) {
                 Pat::Ident(ident_pat) => {
                     (ident_pat.ident.to_string(), arg_type, ident_pat.by_ref.is_some(), ident_pat.span())
                 },
-                Pat::Ref(ref_pat) => unimplemented!(),
+                Pat::Ref(_ref_pat) => unimplemented!(),
                 _ => panic!()
             }
         },
@@ -170,7 +170,7 @@ pub fn ivory_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 fn into_c_str(input: TokenStream) -> TokenStream {
     let tokens: Vec<TokenTree> = input.into_iter().map(|token| {
         match token.clone() {
-            TokenTree::Literal(lit) => {
+            TokenTree::Literal(_lit) => {
                 let mut tokens = TokenStream::new();
                 tokens.extend(vec![token.clone()]);
                 match syn::parse2::<LitStr>(tokens) {
