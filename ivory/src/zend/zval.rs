@@ -53,7 +53,7 @@ impl Iterator for IntoArgIterator {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.item < self.count {
-            let val = unsafe { (self.base.add(self.item as usize)).into() };
+            let val = unsafe { (*self.base.add(self.item as usize)).as_php_val() };
             self.item += 1;
             Some(val)
         } else {
@@ -101,13 +101,27 @@ impl ZVal {
             } else {
                 ArrayKey::String(zend_str_as_string(&*elem.key))
             };
-            let val: PhpVal = (&ZVal(elem.val)).into();
+            let val: PhpVal = ZVal(elem.val).as_php_val();
             match val {
                 PhpVal::Undef => {}
                 _ => result.push((key, val))
             }
         }
         result
+    }
+
+    pub fn as_php_val(&self) -> PhpVal {
+        match self.get_type() {
+            ZValType::Undef => PhpVal::Undef,
+            ZValType::Null => PhpVal::Null,
+            ZValType::False => PhpVal::Bool(false),
+            ZValType::True => PhpVal::Bool(true),
+            ZValType::Long => PhpVal::Long(unsafe { self.as_i64() }),
+            ZValType::Double => PhpVal::Double(unsafe { self.as_f64() }),
+            ZValType::String => PhpVal::String(unsafe { self.as_str() }),
+            ZValType::Array => PhpVal::Array(unsafe { self.as_array() }),
+            _ => PhpVal::Undef
+        }
     }
 }
 
@@ -162,25 +176,38 @@ impl Default for PhpVal {
     }
 }
 
-impl From<*const ZVal> for PhpVal {
-    fn from(val: *const ZVal) -> Self {
-        let val = unsafe { &*val };
-        val.into()
+impl From<PhpVal> for Option<i64> {
+    fn from(val: PhpVal) -> Self {
+        match val {
+            PhpVal::Long(val) => Some(val),
+            _ => None
+        }
     }
 }
 
-impl From<&ZVal> for PhpVal {
-    fn from(val: &ZVal) -> Self {
-        match val.get_type() {
-            ZValType::Undef => PhpVal::Undef,
-            ZValType::Null => PhpVal::Null,
-            ZValType::False => PhpVal::Bool(false),
-            ZValType::True => PhpVal::Bool(true),
-            ZValType::Long => PhpVal::Long(unsafe { val.as_i64() }),
-            ZValType::Double => PhpVal::Double(unsafe { val.as_f64() }),
-            ZValType::String => PhpVal::String(unsafe { val.as_str() }),
-            ZValType::Array => PhpVal::Array(unsafe { val.as_array() }),
-            _ => PhpVal::Undef
+impl From<PhpVal> for Option<f64> {
+    fn from(val: PhpVal) -> Self {
+        match val {
+            PhpVal::Double(val) => Some(val),
+            _ => None
+        }
+    }
+}
+
+impl From<PhpVal> for Option<bool> {
+    fn from(val: PhpVal) -> Self {
+        match val {
+            PhpVal::Bool(val) => Some(val),
+            _ => None
+        }
+    }
+}
+
+impl From<PhpVal> for Option<String> {
+    fn from(val: PhpVal) -> Self {
+        match val {
+            PhpVal::String(val) => Some(val),
+            _ => None
         }
     }
 }

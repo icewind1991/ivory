@@ -45,15 +45,41 @@ fn export_fn(item: ItemFn) -> TokenStream {
         unimplemented!("generics are not supported for exported functions");
     }
 
-    let arg_defs = decl.inputs.into_iter()
+    let args: Vec<(String, Type, bool, Span)> = decl.inputs.into_iter()
         .map(get_arg_info)
-        .map(|(name, _type, is_ref)| {
+        .collect();
+    let arg_count = args.len() as u32;
+
+    let arg_defs = args.iter().map(|(name, _type, is_ref, _)| {
         quote!(::ivory::zend::ArgInfo::new(::ivory::c_str!(#name), false, false, #is_ref))
+    });
+
+    let arg_cast = args.iter().enumerate().map(|(index, (name, ty, _is_ref, span))| {
+        let arg_ident = Ident::new(name, span.clone());
+        quote!(
+            let #arg_ident: #ty = {
+                let opt: Option<#ty> = args.remove(0).into();
+                match opt {
+                    Some(val) => val,
+                    None => {
+                        ::ivory::externs::printf("invalid argument type");
+                        return;
+                    }
+                }
+            };
+        )
     });
 
     quote! {
         #[no_mangle]
         pub extern "C" fn #name(data: *const ::ivory::zend::ExecuteData, retval: *mut ::ivory::zend::ZVal) {
+            let data: &::ivory::zend::ExecuteData = unsafe { data.as_ref() }.unwrap();
+            if data.num_args() != #arg_count {
+                ::ivory::externs::printf("unexpected number of arguments");
+                return;
+            }
+            let mut args: Vec<PhpVal> = data.args().collect();
+            #(#arg_cast);*
             let result = #body;
         }
 
@@ -65,13 +91,13 @@ fn export_fn(item: ItemFn) -> TokenStream {
     }
 }
 
-fn get_arg_info(arg: FnArg) -> (String, Type, bool) {
+fn get_arg_info(arg: FnArg) -> (String, Type, bool, Span) {
     match arg {
         FnArg::Captured(cap) => {
             let arg_type = cap.ty;
             match cap.pat {
                 Pat::Ident(ident_pat) => {
-                    (ident_pat.ident.to_string(), arg_type, ident_pat.by_ref.is_some())
+                    (ident_pat.ident.to_string(), arg_type, ident_pat.by_ref.is_some(), ident_pat.span())
                 },
                 Pat::Ref(ref_pat) => unimplemented!(),
                 _ => panic!()
