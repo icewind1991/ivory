@@ -1,8 +1,5 @@
-use std::intrinsics::transmute;
-
-use ivory::*;
+use ivory::{ivory_export, ivory_module};
 use ivory::externs::printf;
-use ivory::zend::{ExecuteData, PhpVal, ZVal};
 
 #[ivory_export]
 fn hello_other(other: String) {

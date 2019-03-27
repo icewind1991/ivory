@@ -78,7 +78,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
                 ::ivory::externs::printf("unexpected number of arguments");
                 return;
             }
-            let mut args: Vec<PhpVal> = data.args().collect();
+            let mut args: Vec<::ivory::zend::PhpVal> = data.args().collect();
             #(#arg_cast);*
             let result = #body;
         }
