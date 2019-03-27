@@ -1,10 +1,11 @@
 use std::collections::HashMap;
-use std::str;
 use std::intrinsics::transmute;
 use std::mem::size_of;
 use std::os::raw::c_char;
+use std::str;
 
 use crate::externs::printf;
+use crate::zend::bindings::zend_string;
 
 use super::bindings::{zend_execute_data, zval};
 
@@ -61,6 +62,13 @@ impl Iterator for IntoArgIterator {
     }
 }
 
+unsafe fn zend_str_as_string(str: &zend_string) -> String {
+    let len = str.len;
+    let base: *const c_char = &str.val[0];
+    let slice: &[u8] = std::slice::from_raw_parts(base as *const u8, len);
+    str::from_utf8_unchecked(slice).to_string()
+}
+
 #[repr(transparent)]
 pub struct ZVal(zval);
 
@@ -79,10 +87,27 @@ impl ZVal {
 
     pub unsafe fn as_str(&self) -> String {
         let str = *self.0.value.str;
-        let len = str.len;
-        let base: *const c_char = &str.val[0];
-        let slice:&[u8] = std::slice::from_raw_parts(base as *const u8, len);
-        str::from_utf8_unchecked(slice).to_string()
+        zend_str_as_string(&str)
+    }
+
+    pub unsafe fn as_array(&self) -> Vec<(ArrayKey, PhpVal)> {
+        let arr = *self.0.value.arr;
+        let len = arr.nNumUsed;
+        let mut result = Vec::new();
+        for i in 0..len {
+            let elem = *arr.arData.add(i as usize);
+            let key = if elem.key.is_null() {
+                ArrayKey::Int(elem.h)
+            } else {
+                ArrayKey::String(zend_str_as_string(&*elem.key))
+            };
+            let val: PhpVal = (&ZVal(elem.val)).into();
+            match val {
+                PhpVal::Undef => {}
+                _ => result.push((key, val))
+            }
+        }
+        result
     }
 }
 
@@ -111,7 +136,13 @@ impl From<u8> for ZValType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
+pub enum ArrayKey {
+    String(String),
+    Int(u64),
+}
+
+#[derive(Debug)]
 pub enum PhpVal {
     Undef,
     Null,
@@ -119,15 +150,27 @@ pub enum PhpVal {
     Long(i64),
     Double(f64),
     String(String),
-    Array(Vec<PhpVal>),
+    Array(Vec<(ArrayKey, PhpVal)>),
     Object(HashMap<String, PhpVal>),
     Resource(u64),
     Reference(),
 }
 
+impl Default for PhpVal {
+    fn default() -> Self {
+        PhpVal::Undef
+    }
+}
+
 impl From<*const ZVal> for PhpVal {
     fn from(val: *const ZVal) -> Self {
         let val = unsafe { &*val };
+        val.into()
+    }
+}
+
+impl From<&ZVal> for PhpVal {
+    fn from(val: &ZVal) -> Self {
         match val.get_type() {
             ZValType::Undef => PhpVal::Undef,
             ZValType::Null => PhpVal::Null,
@@ -135,7 +178,8 @@ impl From<*const ZVal> for PhpVal {
             ZValType::True => PhpVal::Bool(true),
             ZValType::Long => PhpVal::Long(unsafe { val.as_i64() }),
             ZValType::Double => PhpVal::Double(unsafe { val.as_f64() }),
-            ZValType::String=> PhpVal::String(unsafe { val.as_str() }),
+            ZValType::String => PhpVal::String(unsafe { val.as_str() }),
+            ZValType::Array => PhpVal::Array(unsafe { val.as_array() }),
             _ => PhpVal::Undef
         }
     }
