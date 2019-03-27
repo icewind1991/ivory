@@ -21,7 +21,7 @@ impl ExecuteData {
         let offset = (size_of::<zend_execute_data>() + size_of::<zval>() - 1) / size_of::<zval>();
         let self_ptr: *const zend_execute_data = &self.0;
         unsafe {
-            transmute::<_, *const ZVal>(self_ptr).add(5)
+            transmute::<_, *const ZVal>(self_ptr).add(offset)
         }
     }
 

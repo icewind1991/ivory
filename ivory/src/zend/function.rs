@@ -57,7 +57,7 @@ impl Function {
     pub fn new_with_args(
         name: *const c_char,
         handler: HandlerFunc,
-        mut args: &'static [ArgInfo],
+        args: &'static [ArgInfo],
     ) -> Function {
         let num_args = args.len() as u32;
         let mut args_vec = Vec::new();
