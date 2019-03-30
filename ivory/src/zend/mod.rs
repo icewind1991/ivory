@@ -5,4 +5,4 @@ pub use self::zval::{ExecuteData, ZVal, PhpVal};
 mod module;
 mod function;
 mod zval;
-mod bindings;
+pub mod bindings;

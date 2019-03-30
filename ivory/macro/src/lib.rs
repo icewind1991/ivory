@@ -62,7 +62,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
                 match opt {
                     Some(val) => val,
                     None => {
-                        ::ivory::externs::printf("invalid argument type,");
+                        ::ivory::externs::error(::ivory::externs::ErrorLevel::Error, "invalid argument type,");
                         return;
                     }
                 }
@@ -75,7 +75,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
         pub extern "C" fn #name(data: *const ::ivory::zend::ExecuteData, retval: *mut ::ivory::zend::ZVal) {
             let data: &::ivory::zend::ExecuteData = unsafe { data.as_ref() }.unwrap();
             if data.num_args() != #arg_count {
-                ::ivory::externs::printf(format!("unexpected number of arguments, expected {}, got {}", #arg_count, data.num_args()));
+                ::ivory::externs::error(::ivory::externs::ErrorLevel::Error, format!("unexpected number of arguments, expected {}, got {}", #arg_count, data.num_args()));
                 return;
             }
             let mut args: Vec<::ivory::zend::PhpVal> = data.args().collect();
