@@ -3,7 +3,7 @@ use std::intrinsics::transmute;
 
 use libc::*;
 
-use crate::zend::bindings::zend_error;
+use ivory_sys::zend_error;
 
 extern "C" {
     pub fn php_printf(format: *const c_char, ...) -> size_t;

@@ -4,9 +4,7 @@ use std::mem::size_of;
 use std::os::raw::c_char;
 use std::str;
 
-use crate::zend::bindings::zend_string;
-
-use super::bindings::{zend_execute_data, zval};
+use ivory_sys::{zend_execute_data, zval, zend_string};
 
 #[repr(transparent)]
 pub struct ExecuteData(zend_execute_data);

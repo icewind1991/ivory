@@ -2,15 +2,12 @@ extern crate bindgen;
 extern crate cc;
 extern crate num_cpus;
 
-use bindgen::callbacks::{MacroParsingBehavior, ParseCallbacks};
 use bindgen::Builder;
-use std::collections::HashSet;
 use std::env;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::{Arc, RwLock};
 
 const PHP_VERSION: &'static str = concat!("php-", env!("CARGO_PKG_VERSION"));
 
@@ -52,25 +49,6 @@ fn exists(path: &str) -> bool {
     Path::new(target(path).as_str()).exists()
 }
 
-/// This is needed to prevent bindgen to create multiple definitions of the same macro and fail
-#[derive(Debug)]
-struct MacroCallback {
-    macros: Arc<RwLock<HashSet<String>>>,
-}
-
-impl ParseCallbacks for MacroCallback {
-    fn will_parse_macro(&self, name: &str) -> MacroParsingBehavior {
-        self.macros.write().unwrap().insert(name.into());
-
-        match name {
-            "FP_NAN" | "FP_INFINITE" | "FP_ZERO" | "FP_SUBNORMAL" | "FP_NORMAL" => {
-                MacroParsingBehavior::Ignore
-            }
-            _ => MacroParsingBehavior::Default,
-        }
-    }
-}
-
 fn main() {
     let cpus = format!("{}", num_cpus::get());
     #[cfg(all(target_os = "linux"))]
@@ -78,7 +56,6 @@ fn main() {
     #[cfg(all(target_os = "macos"))]
     let default_link_static = true;
     let php_version = option_env!("PHP_VERSION").unwrap_or(PHP_VERSION);
-    let macros = Arc::new(RwLock::new(HashSet::new()));
 
     println!("cargo:rerun-if-env-changed=PHP_VERSION");
     println!("cargo:rerun-if-env-changed=PHP_LINK_STATIC");
@@ -166,12 +143,6 @@ fn main() {
     }
 
     let include_dir = target("php-src");
-    let lib_dir = target("php-src/libs");
-
-    let link_type = if link_static { "=static" } else { "" };
-
-    println!("cargo:rustc-link-lib{}=php7", link_type);
-    println!("cargo:rustc-link-search=native={}", lib_dir);
 
     let includes = ["/", "/TSRM", "/Zend", "/main"]
         .iter()
@@ -181,36 +152,14 @@ fn main() {
     let bindings = Builder::default()
         .rustfmt_bindings(true)
         .clang_args(includes)
-        .whitelist_function("_zend_file_handle__bindgen_ty_1")
-        .whitelist_function("php_execute_script")
-        .whitelist_function("php_module_startup")
-        .whitelist_function("php_request_shutdown")
-        .whitelist_function("php_request_startup")
-        .whitelist_function("phprpm_fopen")
-        .whitelist_function("sapi_send_headers")
-        .whitelist_function("sapi_startup")
-        .whitelist_function("sg_request_info")
-        .whitelist_function("sg_sapi_headers")
-        .whitelist_function("sg_server_context")
-        .whitelist_function("sg_server_context")
-        .whitelist_function("sg_set_server_context")
-        .whitelist_function("sg_set_server_context")
-        .whitelist_function("ts_resource_ex")
-        .whitelist_function("tsrm_startup")
         .whitelist_function("zend_error")
-        .whitelist_function("zend_signal_startup")
-        .whitelist_function("zend_tsrmls_cache_update")
-        .whitelist_var("SAPI_HEADER_SENT_SUCCESSFULLY")
-        .whitelist_type("sapi_headers_struc")
-        .whitelist_type("sapi_module_struc")
-        .whitelist_type("sapi_request_info")
-        .whitelist_type("ZEND_RESULT_CODE")
+        .whitelist_function("php_info_print_table_start")
+        .whitelist_function("php_info_print_table_row")
+        .whitelist_function("php_info_print_table_end")
+        .whitelist_function("php_printf")
         .whitelist_type("zval")
         .whitelist_type("zend_execute_data")
-        .whitelist_var("zend_stream_type_ZEND_HANDLE_FP")
-        .parse_callbacks(Box::new(MacroCallback {
-            macros: macros.clone(),
-        })).derive_default(true)
+        .derive_default(false)
         .header("wrapper.h")
         .generate()
         .expect("Unable to generate bindings");
@@ -219,13 +168,4 @@ fn main() {
     bindings
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
-    cc::Build::new()
-        .file("src/shim.c")
-        .include(&include_dir)
-        .flag("-fPIC")
-        .flag("-m64")
-        .include(&format!("{}/TSRM", include_dir))
-        .include(&format!("{}/Zend", include_dir))
-        .include(&format!("{}/main", include_dir))
-        .compile("foo");
 }
