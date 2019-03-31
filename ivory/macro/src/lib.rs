@@ -2,18 +2,11 @@
 
 extern crate proc_macro;
 
-use core::fmt::Debug;
-use std::collections::HashMap;
-use std::process::Command;
-
 use proc_macro2::{Span, TokenStream, TokenTree};
-use proc_macro2::token_stream::IntoIter;
-use quote::{quote, quote_spanned};
-use syn::{Attribute, AttributeArgs, Data, Expr, ExprStruct, Fields, FieldValue, FnArg, Ident, Item, ItemFn, Lit, LitStr, Meta, parse2, parse_macro_input, parse_quote, parse_str, Pat, Path, Type};
-use syn::parse_quote::parse;
+use quote::quote;
+use syn::{AttributeArgs, Expr, FieldValue, FnArg, Ident, Item, ItemFn, LitStr, parse2, parse_macro_input, Pat, Type};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::token::Comma;
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_attribute]
@@ -23,8 +16,8 @@ pub fn ivory_export(attr: proc_macro::TokenStream, input: proc_macro::TokenStrea
     let _attr = parse_macro_input!(attr as AttributeArgs);
 
     let output = match item {
-        Item::Fn(itemFn) => {
-            export_fn(itemFn).into()
+        Item::Fn(item_fn) => {
+            export_fn(item_fn).into()
         }
         _ => unimplemented!()
     };
@@ -174,8 +167,8 @@ fn into_c_str(input: TokenStream) -> TokenStream {
                 let mut tokens = TokenStream::new();
                 tokens.extend(vec![token.clone()]);
                 match syn::parse2::<LitStr>(tokens) {
-                    Ok(litStr) => {
-                        let val = litStr.value();
+                    Ok(lit_str) => {
+                        let val = lit_str.value();
                         let tokens = quote! {
                             { concat!(#val, "\0").as_ptr() as *const ::libc::c_char }
                         };

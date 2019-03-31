@@ -4,7 +4,6 @@ use std::mem::size_of;
 use std::os::raw::c_char;
 use std::str;
 
-use crate::externs::printf;
 use crate::zend::bindings::zend_string;
 
 use super::bindings::{zend_execute_data, zval};
@@ -26,11 +25,9 @@ impl ExecuteData {
     }
 
     pub unsafe fn get_arg(&self, i: u32) -> &ZVal {
-        unsafe {
-            let base = self.get_arg_base();
-            let val_ptr = base.add(i as usize);
-            &*val_ptr
-        }
+        let base = self.get_arg_base();
+        let val_ptr = base.add(i as usize);
+        &*val_ptr
     }
 
     pub fn args(&self) -> IntoArgIterator {
