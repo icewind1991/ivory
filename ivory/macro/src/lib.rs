@@ -58,7 +58,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
         let arg_ident = Ident::new(name, span.clone());
         quote!(
             let #arg_ident: #ty = {
-                let opt: Option<#ty> = args.remove(0).into();
+                let opt: Option<#ty> = args.next().unwrap().into();
                 match opt {
                     Some(val) => val,
                     None => {
@@ -78,7 +78,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
                 ::ivory::externs::error(::ivory::externs::ErrorLevel::Error, format!("unexpected number of arguments, expected {}, got {}", #arg_count, data.num_args()));
                 return;
             }
-            let mut args: Vec<::ivory::zend::PhpVal> = data.args().collect();
+            let mut args = data.args();
             #(#arg_cast);*
             let result = #body;
         }
