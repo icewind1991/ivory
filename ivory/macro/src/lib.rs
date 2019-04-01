@@ -4,22 +4,26 @@ extern crate proc_macro;
 
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::quote;
-use syn::{AttributeArgs, Expr, FieldValue, FnArg, Ident, Item, ItemFn, LitStr, parse2, parse_macro_input, Pat, Type};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
+use syn::{
+    parse2, parse_macro_input, AttributeArgs, Expr, FieldValue, FnArg, Ident, Item, ItemFn, LitStr,
+    Pat, Type,
+};
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_attribute]
-pub fn ivory_export(attr: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn ivory_export(
+    attr: proc_macro::TokenStream,
+    input: proc_macro::TokenStream,
+) -> proc_macro::TokenStream {
     let input: TokenStream = input.into();
     let item = syn::parse2::<Item>(input).unwrap();
     let _attr = parse_macro_input!(attr as AttributeArgs);
 
     let output = match item {
-        Item::Fn(item_fn) => {
-            export_fn(item_fn).into()
-        }
-        _ => unimplemented!()
+        Item::Fn(item_fn) => export_fn(item_fn).into(),
+        _ => unimplemented!(),
     };
 
     // panic!("{}", output);
@@ -38,9 +42,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
         unimplemented!("generics are not supported for exported functions");
     }
 
-    let args: Vec<(String, Type, bool, Span)> = decl.inputs.into_iter()
-        .map(get_arg_info)
-        .collect();
+    let args: Vec<(String, Type, bool, Span)> = decl.inputs.into_iter().map(get_arg_info).collect();
     let arg_count = args.len() as u32;
 
     let arg_defs = args.iter().map(|(name, _type, is_ref, _)| {
@@ -77,7 +79,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
         }
 
         const #meta_name: ::ivory::zend::FunctionMeta = ::ivory::zend::FunctionMeta{
-            name: {concat!(#name_str, "\0").as_ptr() as *const ::libc::c_char},
+            name: {concat!(#name_str, "\0").as_ptr() as *const ::std::os::raw::c_char},
             func: #name,
             args: &[ #(#arg_defs),*]
         };
@@ -89,14 +91,17 @@ fn get_arg_info(arg: FnArg) -> (String, Type, bool, Span) {
         FnArg::Captured(cap) => {
             let arg_type = cap.ty;
             match cap.pat {
-                Pat::Ident(ident_pat) => {
-                    (ident_pat.ident.to_string(), arg_type, ident_pat.by_ref.is_some(), ident_pat.span())
-                },
+                Pat::Ident(ident_pat) => (
+                    ident_pat.ident.to_string(),
+                    arg_type,
+                    ident_pat.by_ref.is_some(),
+                    ident_pat.span(),
+                ),
                 Pat::Ref(_ref_pat) => unimplemented!(),
-                _ => panic!()
+                _ => panic!(),
             }
-        },
-        _ => panic!("only normal function arguments are supported")
+        }
+        _ => panic!("only normal function arguments are supported"),
     }
 }
 
@@ -109,10 +114,8 @@ pub fn ivory_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let mut tokens = input.into_iter();
     let token = tokens.next().unwrap();
     let group = match token {
-        TokenTree::Group(group) => {
-            group
-        }
-        _ => panic!("macro input must be a group")
+        TokenTree::Group(group) => group,
+        _ => panic!("macro input must be a group"),
     };
 
     let fields = group.stream();
@@ -161,8 +164,9 @@ pub fn ivory_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 fn into_c_str(input: TokenStream) -> TokenStream {
-    let tokens: Vec<TokenTree> = input.into_iter().map(|token| {
-        match token.clone() {
+    let tokens: Vec<TokenTree> = input
+        .into_iter()
+        .map(|token| match token.clone() {
             TokenTree::Literal(_lit) => {
                 let mut tokens = TokenStream::new();
                 tokens.extend(vec![token.clone()]);
@@ -170,7 +174,7 @@ fn into_c_str(input: TokenStream) -> TokenStream {
                     Ok(lit_str) => {
                         let val = lit_str.value();
                         let tokens = quote! {
-                            { concat!(#val, "\0").as_ptr() as *const ::libc::c_char }
+                            { concat!(#val, "\0").as_ptr() as *const ::std::os::raw::c_char }
                         };
                         if let Some(tree) = tokens.into_iter().next() {
                             tree
@@ -178,12 +182,12 @@ fn into_c_str(input: TokenStream) -> TokenStream {
                             panic!();
                         }
                     }
-                    Err(_) => token
+                    Err(_) => token,
                 }
             }
-            _ => token
-        }
-    }).collect();
+            _ => token,
+        })
+        .collect();
     let mut output = TokenStream::new();
     output.extend(tokens.into_iter());
     output
@@ -193,31 +197,29 @@ fn get_function_names(struct_def: TokenStream) -> Vec<String> {
     let expr: Expr = parse2(struct_def).unwrap();
     let expr = get_field_expr(expr, "functions").unwrap();
     match expr {
-        Expr::Reference(ref_expr) => {
-            match *ref_expr.expr {
-                Expr::Array(arr) => {
-                    arr.elems.into_iter().map(|element: Expr| {
-                        let tokens: TokenStream = quote!(#element);
-                        let tree = tokens.into_iter().next().unwrap();
-                        match tree {
-                            TokenTree::Ident(ident) => {
-                                ident.to_string()
-                            }
-                            _ => panic!()
-                        }
-                    }).collect()
-                }
-                _ => panic!()
-            }
-        }
-        _ => panic!()
+        Expr::Reference(ref_expr) => match *ref_expr.expr {
+            Expr::Array(arr) => arr
+                .elems
+                .into_iter()
+                .map(|element: Expr| {
+                    let tokens: TokenStream = quote!(#element);
+                    let tree = tokens.into_iter().next().unwrap();
+                    match tree {
+                        TokenTree::Ident(ident) => ident.to_string(),
+                        _ => panic!(),
+                    }
+                })
+                .collect(),
+            _ => panic!(),
+        },
+        _ => panic!(),
     }
 }
 
 fn get_field_expr(expr: Expr, field_name: &str) -> Option<Expr> {
     let fields: Punctuated<FieldValue, syn::token::Comma> = match expr {
         Expr::Struct(expr) => expr.fields,
-        _ => panic!("invalid struct")
+        _ => panic!("invalid struct"),
     };
     for field in fields {
         if let syn::Member::Named(ident) = &field.member {

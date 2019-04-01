@@ -15,7 +15,7 @@ fn hello_other(other: String) {
 
 #[ivory_export]
 fn hello_world() {
-    printf("Hello world, Rust2!");
+    printf("Hello world, Rust!");
 }
 
 ivory_module!({

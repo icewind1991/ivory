@@ -1,6 +1,5 @@
 use std;
-
-use libc::*;
+use std::os::raw::{c_char, c_uchar};
 
 use crate::zend::HandlerFunc;
 
@@ -33,7 +32,6 @@ impl ArgInfo {
     }
 }
 
-#[derive(Clone)]
 #[repr(C)]
 pub struct Function {
     fname: *const c_char,

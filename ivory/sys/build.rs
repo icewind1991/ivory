@@ -26,7 +26,11 @@ fn run_command_or_fail(dir: String, cmd: &str, args: &[&str]) {
         args.join(" "),
         dir
     );
-    let ret = Command::new(cmd).current_dir(dir).args(args).env("CC", "clang").status();
+    let ret = Command::new(cmd)
+        .current_dir(dir)
+        .args(args)
+        .env("CC", "clang")
+        .status();
     match ret.map(|status| (status.success(), status.code())) {
         Ok((true, _)) => return,
         Ok((false, Some(c))) => panic!("Command failed with error code {}", c),
@@ -69,14 +73,7 @@ fn main() {
 
     if !exists("php-src/LICENSE") {
         println_stderr!("Setting up PHP {}", php_version);
-        run_command_or_fail(
-            "/".to_string(),
-            "mkdir",
-            &[
-                "-p",
-                &target("")
-            ],
-        );
+        run_command_or_fail("/".to_string(), "mkdir", &["-p", &target("")]);
         run_command_or_fail(
             target(""),
             "git",
@@ -159,6 +156,7 @@ fn main() {
         .whitelist_function("php_printf")
         .whitelist_type("zval")
         .whitelist_type("zend_execute_data")
+        .whitelist_type("zend_module_entry")
         .derive_default(false)
         .header("wrapper.h")
         .generate()

@@ -1,9 +1,8 @@
 use std;
 use std::mem;
+use std::os::raw::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void};
 
-use libc::*;
-
-use crate::zend::function::{Function, ArgInfo};
+use crate::zend::function::{ArgInfo, Function};
 use crate::zend::{ExecuteData, ZVal};
 
 pub(crate) type StartupFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
@@ -34,7 +33,7 @@ pub struct ModuleInternal {
     request_shutdown_func: Option<ShutdownFunc>,
     info_func: Option<InfoFunc>,
     version: *const c_char,
-    globals_size: size_t,
+    globals_size: usize,
     globals_ptr: *const c_void,
     globals_ctor: Option<GlobalsCtorFunc>,
     globals_dtor: Option<GlobalsDtorFunc>,
@@ -97,7 +96,7 @@ impl ModuleInternal {
 pub struct FunctionMeta {
     pub name: *const c_char,
     pub func: HandlerFunc,
-    pub args: &'static [ArgInfo]
+    pub args: &'static [ArgInfo],
 }
 
 impl FunctionMeta {
@@ -114,5 +113,5 @@ pub struct PhpModule {
     pub name: *const c_char,
     pub version: *const c_char,
     pub functions: &'static [HandlerFunc],
-    pub info: &'static [(&'static str, &'static str)]
+    pub info: &'static [(&'static str, &'static str)],
 }

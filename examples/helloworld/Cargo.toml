@@ -5,7 +5,6 @@ authors = ["Robin Appelman <robin@icewind.nl>"]
 edition = "2018"
 
 [dependencies]
-libc = "0.2.50"
 ivory = { path = "../../ivory", version = "0.1.0" }
 
 [lib]

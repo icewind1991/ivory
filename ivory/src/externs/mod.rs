@@ -1,17 +1,13 @@
 use std::ffi::CString;
 use std::intrinsics::transmute;
 
-use libc::*;
-
-use ivory_sys::zend_error;
-
-extern "C" {
-    pub fn php_printf(format: *const c_char, ...) -> size_t;
-}
+use ivory_sys::{php_printf, zend_error};
 
 pub fn printf<T: Into<Vec<u8>>>(string: T) {
     let cstr = CString::new(string).unwrap();
-    unsafe { php_printf(cstr.as_ptr()); }
+    unsafe {
+        php_printf(cstr.as_ptr());
+    }
 }
 
 #[repr(i32)]
@@ -41,5 +37,7 @@ impl From<ErrorLevel> for i32 {
 
 pub fn error<T: Into<Vec<u8>>>(level: ErrorLevel, message: T) {
     let cstr = CString::new(message).unwrap();
-    unsafe { zend_error(level.into(), cstr.as_ptr()); }
+    unsafe {
+        zend_error(level.into(), cstr.as_ptr());
+    }
 }

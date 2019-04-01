@@ -1,5 +1,5 @@
-use libc::*;
 use std::ffi::CString;
+use std::os::raw::{c_int, c_void};
 
 extern "C" {
     pub fn php_info_print_table_start();
