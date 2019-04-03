@@ -1,0 +1,16 @@
+[package]
+name = "ivory-tests"
+version = "0.1.0"
+authors = ["Robin Appelman <robin@icewind.nl>"]
+edition = "2018"
+
+[dependencies]
+ivory = { path = "../ivory", version = "0.1.0" }
+
+[dev-dependencies]
+maplit = "1.0"
+pretty_assertions = "0.6"
+
+[lib]
+name = "tests"
+crate-type = ["dylib"]

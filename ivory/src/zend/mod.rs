@@ -1,7 +1,7 @@
-pub use self::module::*;
 pub use self::function::*;
-pub use self::zval::{ExecuteData, ZVal, PhpVal};
+pub use self::module::*;
+pub use self::zval::{ArgError, ArrayKey, CastError, ExecuteData, PhpVal, ZVal};
 
-mod module;
 mod function;
+mod module;
 mod zval;

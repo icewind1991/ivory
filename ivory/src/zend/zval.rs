@@ -1,10 +1,13 @@
 use std::collections::HashMap;
+use std::error::Error;
+use std::fmt;
+use std::fmt::Display;
 use std::intrinsics::transmute;
 use std::mem::size_of;
 use std::os::raw::c_char;
 use std::str;
 
-use ivory_sys::{zend_execute_data, zval, zend_string};
+use ivory_sys::{zend_execute_data, zend_string, zval};
 
 #[repr(transparent)]
 pub struct ExecuteData(zend_execute_data);
@@ -17,9 +20,7 @@ impl ExecuteData {
     fn get_arg_base(&self) -> *const ZVal {
         let offset = (size_of::<zend_execute_data>() + size_of::<zval>() - 1) / size_of::<zval>();
         let self_ptr: *const zend_execute_data = &self.0;
-        unsafe {
-            transmute::<_, *const ZVal>(self_ptr).add(offset)
-        }
+        unsafe { transmute::<_, *const ZVal>(self_ptr).add(offset) }
     }
 
     pub unsafe fn get_arg(&self, i: u32) -> &ZVal {
@@ -52,7 +53,7 @@ impl Iterator for IntoArgIterator {
             self.item += 1;
             Some(val)
         } else {
-            None
+            Some(PhpVal::Undef)
         }
     }
 }
@@ -99,7 +100,7 @@ impl ZVal {
             let val: PhpVal = ZVal(elem.val).as_php_val();
             match val {
                 PhpVal::Undef => {}
-                _ => result.push((key, val))
+                _ => result.push((key, val)),
             }
         }
         result
@@ -115,7 +116,7 @@ impl ZVal {
             ZValType::Double => PhpVal::Double(unsafe { self.as_f64() }),
             ZValType::String => PhpVal::String(unsafe { self.as_str() }),
             ZValType::Array => PhpVal::Array(unsafe { self.as_array() }),
-            _ => PhpVal::Undef
+            _ => PhpVal::Undef,
         }
     }
 }
@@ -136,6 +137,24 @@ pub enum ZValType {
     Reference = 10,
 }
 
+impl Display for ZValType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ZValType::Undef => write!(f, "undefined"),
+            ZValType::Null => write!(f, "null"),
+            ZValType::False => write!(f, "bool"),
+            ZValType::True => write!(f, "bool"),
+            ZValType::Long => write!(f, "long"),
+            ZValType::Double => write!(f, "double"),
+            ZValType::String => write!(f, "string"),
+            ZValType::Array => write!(f, "array"),
+            ZValType::Object => write!(f, "object"),
+            ZValType::Resource => write!(f, "resource"),
+            ZValType::Reference => write!(f, "reference"),
+        }
+    }
+}
+
 impl From<u8> for ZValType {
     fn from(val: u8) -> Self {
         if val > 10 {
@@ -149,6 +168,24 @@ impl From<u8> for ZValType {
 pub enum ArrayKey {
     String(String),
     Int(u64),
+}
+
+impl From<String> for ArrayKey {
+    fn from(input: String) -> Self {
+        ArrayKey::String(input)
+    }
+}
+
+impl From<u64> for ArrayKey {
+    fn from(input: u64) -> Self {
+        ArrayKey::Int(input)
+    }
+}
+
+impl From<usize> for ArrayKey {
+    fn from(input: usize) -> Self {
+        ArrayKey::Int(input as u64)
+    }
 }
 
 #[derive(Debug)]
@@ -165,44 +202,164 @@ pub enum PhpVal {
     Reference(),
 }
 
+impl PhpVal {
+    pub fn get_type(&self) -> ZValType {
+        match self {
+            PhpVal::Undef => ZValType::Undef,
+            PhpVal::Null => ZValType::Null,
+            PhpVal::Bool(true) => ZValType::True,
+            PhpVal::Bool(false) => ZValType::False,
+            PhpVal::Long(_) => ZValType::Long,
+            PhpVal::Double(_) => ZValType::Double,
+            PhpVal::String(_) => ZValType::String,
+            PhpVal::Array(_) => ZValType::Array,
+            PhpVal::Object(_) => ZValType::Object,
+            PhpVal::Resource(_) => ZValType::Resource,
+            PhpVal::Reference() => ZValType::Reference,
+        }
+    }
+}
+
 impl Default for PhpVal {
     fn default() -> Self {
         PhpVal::Undef
     }
 }
 
-impl From<PhpVal> for Option<i64> {
+impl From<PhpVal> for Result<PhpVal, CastError> {
     fn from(val: PhpVal) -> Self {
-        match val {
-            PhpVal::Long(val) => Some(val),
-            _ => None
+        Ok(val)
+    }
+}
+
+macro_rules! impl_from_phpval {
+    ($type:ty, $variant:ident) => {
+        // non nullable version
+        impl From<PhpVal> for Result<$type, CastError> {
+            fn from(val: PhpVal) -> Self {
+                match val {
+                    PhpVal::$variant(val) => Ok(val),
+                    _ => Err(CastError {
+                        actual: val.get_type(),
+                    }),
+                }
+            }
+        }
+
+        // nullable version
+        impl From<PhpVal> for Result<Option<$type>, CastError> {
+            fn from(val: PhpVal) -> Self {
+                match val {
+                    PhpVal::Null => Ok(None),
+                    PhpVal::Undef => Ok(None),
+                    PhpVal::$variant(val) => Ok(Some(val)),
+                    _ => Err(CastError {
+                        actual: val.get_type(),
+                    }),
+                }
+            }
+        }
+    };
+}
+
+impl_from_phpval!(i64, Long);
+impl_from_phpval!(f64, Double);
+impl_from_phpval!(bool, Bool);
+impl_from_phpval!(String, String);
+
+impl From<i64> for PhpVal {
+    fn from(input: i64) -> Self {
+        PhpVal::Long(input)
+    }
+}
+
+impl From<String> for PhpVal {
+    fn from(input: String) -> Self {
+        PhpVal::String(input)
+    }
+}
+
+impl From<bool> for PhpVal {
+    fn from(input: bool) -> Self {
+        PhpVal::Bool(input)
+    }
+}
+
+impl<T: Into<PhpVal>> From<Option<T>> for PhpVal {
+    fn from(input: Option<T>) -> Self {
+        match input {
+            Some(inner) => inner.into(),
+            None => PhpVal::Null,
         }
     }
 }
 
-impl From<PhpVal> for Option<f64> {
-    fn from(val: PhpVal) -> Self {
-        match val {
-            PhpVal::Double(val) => Some(val),
-            _ => None
+impl<T: Into<PhpVal>> From<Vec<T>> for PhpVal {
+    fn from(input: Vec<T>) -> Self {
+        PhpVal::Array(
+            input
+                .into_iter()
+                .enumerate()
+                .map(|(key, value)| (key.into(), value.into()))
+                .collect(),
+        )
+    }
+}
+
+impl<K: Into<ArrayKey>, T: Into<PhpVal>> From<Vec<(K, T)>> for PhpVal {
+    fn from(input: Vec<(K, T)>) -> Self {
+        PhpVal::Array(
+            input
+                .into_iter()
+                .map(|(key, value)| (key.into(), value.into()))
+                .collect(),
+        )
+    }
+}
+
+#[derive(Debug)]
+pub struct CastError {
+    actual: ZValType,
+}
+
+#[derive(Debug)]
+pub enum ArgError {
+    CastError(CastError),
+    NotEnoughArguments,
+}
+
+impl From<CastError> for ArgError {
+    fn from(from: CastError) -> Self {
+        ArgError::CastError(from)
+    }
+}
+
+impl Display for CastError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Incorrect variable type, got {}", self.actual)
+    }
+}
+
+impl Display for ArgError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ArgError::CastError(err) => err.fmt(f),
+            ArgError::NotEnoughArguments => write!(f, "Not enough arugments"),
         }
     }
 }
 
-impl From<PhpVal> for Option<bool> {
-    fn from(val: PhpVal) -> Self {
-        match val {
-            PhpVal::Bool(val) => Some(val),
-            _ => None
-        }
+impl Error for CastError {
+    fn cause(&self) -> Option<&Error> {
+        None
     }
 }
 
-impl From<PhpVal> for Option<String> {
-    fn from(val: PhpVal) -> Self {
-        match val {
-            PhpVal::String(val) => Some(val),
-            _ => None
+impl Error for ArgError {
+    fn cause(&self) -> Option<&Error> {
+        match self {
+            ArgError::CastError(err) => Some(err),
+            _ => None,
         }
     }
 }

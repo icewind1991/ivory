@@ -53,11 +53,11 @@ fn export_fn(item: ItemFn) -> TokenStream {
         let arg_ident = Ident::new(name, span.clone());
         quote!(
             let #arg_ident: #ty = {
-                let opt: Option<#ty> = args.next().unwrap().into();
-                match opt {
-                    Some(val) => val,
-                    None => {
-                        ::ivory::externs::error(::ivory::externs::ErrorLevel::Error, "invalid argument type,");
+                let result: Result<#ty, ::ivory::CastError> = args.next().unwrap().into();
+                match result {
+                    Ok(val) => val,
+                    Err(err) => {
+                        ::ivory::externs::error(::ivory::externs::ErrorLevel::Error, format!("{}", err));
                         return;
                     }
                 }
@@ -69,7 +69,9 @@ fn export_fn(item: ItemFn) -> TokenStream {
         #[no_mangle]
         pub extern "C" fn #name(data: *const ::ivory::zend::ExecuteData, retval: *mut ::ivory::zend::ZVal) {
             let data: &::ivory::zend::ExecuteData = unsafe { data.as_ref() }.unwrap();
-            if data.num_args() != #arg_count {
+            // the less than case is handled during argument casting
+            // this is needed for optional arguments
+            if data.num_args() > #arg_count {
                 ::ivory::externs::error(::ivory::externs::ErrorLevel::Error, format!("unexpected number of arguments, expected {}, got {}", #arg_count, data.num_args()));
                 return;
             }
