@@ -1,6 +1,6 @@
 pub use self::function::*;
 pub use self::module::*;
-pub use self::zval::{ArgError, ArrayKey, CastError, ExecuteData, PhpVal, ZVal};
+pub use self::zval::{ArrayKey, ExecuteData, PhpVal, ZVal, ZValType};
 
 mod function;
 mod module;

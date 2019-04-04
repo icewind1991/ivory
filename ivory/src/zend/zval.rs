@@ -1,13 +1,15 @@
 use std::collections::HashMap;
-use std::error::Error;
 use std::fmt;
-use std::fmt::Display;
 use std::intrinsics::transmute;
 use std::mem::size_of;
 use std::os::raw::c_char;
 use std::str;
 
 use ivory_sys::{zend_execute_data, zend_string, zval};
+
+use crate::CastError;
+use std::fmt::Display;
+use std::hash::Hash;
 
 #[repr(transparent)]
 pub struct ExecuteData(zend_execute_data);
@@ -121,7 +123,7 @@ impl ZVal {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[repr(u8)]
 pub enum ZValType {
     Undef = 0,
@@ -164,31 +166,30 @@ impl From<u8> for ZValType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ArrayKey {
     String(String),
     Int(u64),
 }
 
-impl From<String> for ArrayKey {
-    fn from(input: String) -> Self {
-        ArrayKey::String(input)
-    }
+macro_rules! impl_from_array_key {
+    ($type:ty, $variant:ident, $type2:ty) => {
+        impl From<$type> for ArrayKey {
+            fn from(input: $type) -> Self {
+                ArrayKey::$variant(input as $type2)
+            }
+        }
+    };
 }
 
-impl From<u64> for ArrayKey {
-    fn from(input: u64) -> Self {
-        ArrayKey::Int(input)
-    }
-}
+impl_from_array_key!(String, String, String);
+impl_from_array_key!(u64, Int, u64);
+impl_from_array_key!(u32, Int, u64);
+impl_from_array_key!(u16, Int, u64);
+impl_from_array_key!(u8, Int, u64);
+impl_from_array_key!(usize, Int, u64);
 
-impl From<usize> for ArrayKey {
-    fn from(input: usize) -> Self {
-        ArrayKey::Int(input as u64)
-    }
-}
-
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum PhpVal {
     Undef,
     Null,
@@ -259,6 +260,12 @@ macro_rules! impl_from_phpval {
                 }
             }
         }
+
+        impl From<$type> for PhpVal {
+            fn from(input: $type) -> Self {
+                PhpVal::$variant(input)
+            }
+        }
     };
 }
 
@@ -266,24 +273,6 @@ impl_from_phpval!(i64, Long);
 impl_from_phpval!(f64, Double);
 impl_from_phpval!(bool, Bool);
 impl_from_phpval!(String, String);
-
-impl From<i64> for PhpVal {
-    fn from(input: i64) -> Self {
-        PhpVal::Long(input)
-    }
-}
-
-impl From<String> for PhpVal {
-    fn from(input: String) -> Self {
-        PhpVal::String(input)
-    }
-}
-
-impl From<bool> for PhpVal {
-    fn from(input: bool) -> Self {
-        PhpVal::Bool(input)
-    }
-}
 
 impl<T: Into<PhpVal>> From<Option<T>> for PhpVal {
     fn from(input: Option<T>) -> Self {
@@ -317,49 +306,13 @@ impl<K: Into<ArrayKey>, T: Into<PhpVal>> From<Vec<(K, T)>> for PhpVal {
     }
 }
 
-#[derive(Debug)]
-pub struct CastError {
-    actual: ZValType,
-}
-
-#[derive(Debug)]
-pub enum ArgError {
-    CastError(CastError),
-    NotEnoughArguments,
-}
-
-impl From<CastError> for ArgError {
-    fn from(from: CastError) -> Self {
-        ArgError::CastError(from)
-    }
-}
-
-impl Display for CastError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Incorrect variable type, got {}", self.actual)
-    }
-}
-
-impl Display for ArgError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ArgError::CastError(err) => err.fmt(f),
-            ArgError::NotEnoughArguments => write!(f, "Not enough arugments"),
-        }
-    }
-}
-
-impl Error for CastError {
-    fn cause(&self) -> Option<&Error> {
-        None
-    }
-}
-
-impl Error for ArgError {
-    fn cause(&self) -> Option<&Error> {
-        match self {
-            ArgError::CastError(err) => Some(err),
-            _ => None,
-        }
+impl<K: Into<ArrayKey> + Hash + Eq, T: Into<PhpVal>> From<HashMap<K, T>> for PhpVal {
+    fn from(input: HashMap<K, T>) -> Self {
+        PhpVal::Array(
+            input
+                .into_iter()
+                .map(|(key, value)| (key.into(), value.into()))
+                .collect(),
+        )
     }
 }

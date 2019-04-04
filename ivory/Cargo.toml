@@ -12,6 +12,10 @@ edition = "2018"
 ivory-macro = { version = "0.1", path = "macro" }
 ivory-sys = { version = "7.3", path = "sys" }
 
+[dev-dependencies]
+maplit = "1.0"
+pretty_assertions = "0.6"
+
 [lib]
 name = "ivory"
 
