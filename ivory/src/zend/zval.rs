@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
+use std::fmt::Display;
+use std::hash::Hash;
 use std::intrinsics::transmute;
 use std::mem::size_of;
 use std::os::raw::c_char;
@@ -8,8 +10,6 @@ use std::str;
 use ivory_sys::{zend_execute_data, zend_string, zval};
 
 use crate::CastError;
-use std::fmt::Display;
-use std::hash::Hash;
 
 #[repr(transparent)]
 pub struct ExecuteData(zend_execute_data);
@@ -166,7 +166,7 @@ impl From<u8> for ZValType {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ArrayKey {
     String(String),
     Int(u64),
@@ -306,13 +306,11 @@ impl<K: Into<ArrayKey>, T: Into<PhpVal>> From<Vec<(K, T)>> for PhpVal {
     }
 }
 
-impl<K: Into<ArrayKey> + Hash + Eq, T: Into<PhpVal>> From<HashMap<K, T>> for PhpVal {
+impl<K: Into<ArrayKey> + Hash + Eq + Ord, T: Into<PhpVal>> From<HashMap<K, T>> for PhpVal {
     fn from(input: HashMap<K, T>) -> Self {
-        PhpVal::Array(
-            input
-                .into_iter()
-                .map(|(key, value)| (key.into(), value.into()))
-                .collect(),
-        )
+        let mut vec: Vec<(K, T)> = input.into_iter().collect();
+        // since hashmap doesn't contain any stable order we sort it to get predictable results
+        vec.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
+        vec.into()
     }
 }
