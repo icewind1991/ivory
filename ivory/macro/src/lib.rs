@@ -89,6 +89,12 @@ fn export_fn(item: ItemFn) -> TokenStream {
             let mut args = data.args();
             #(#arg_cast);*
             let result = #body;
+
+            let php_val = ::ivory::zend::PhpVal::from(result);
+            let zval = ::ivory::zend::ZVal::from(php_val);
+            unsafe {
+                *retval = zval
+            };
         }
     }
 }

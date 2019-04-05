@@ -7,7 +7,7 @@ use std::mem::size_of;
 use std::os::raw::c_char;
 use std::str;
 
-use ivory_sys::{zend_execute_data, zend_string, zval};
+use ivory_sys::*;
 
 use crate::CastError;
 
@@ -274,6 +274,12 @@ impl_from_phpval!(f64, Double);
 impl_from_phpval!(bool, Bool);
 impl_from_phpval!(String, String);
 
+impl From<()> for PhpVal {
+    fn from(_input: ()) -> Self {
+        PhpVal::Null
+    }
+}
+
 impl<T: Into<PhpVal>> From<Option<T>> for PhpVal {
     fn from(input: Option<T>) -> Self {
         match input {
@@ -312,5 +318,24 @@ impl<K: Into<ArrayKey> + Hash + Eq + Ord, T: Into<PhpVal>> From<HashMap<K, T>> f
         // since hashmap doesn't contain any stable order we sort it to get predictable results
         vec.sort_unstable_by(|(a, _), (b, _)| a.cmp(b));
         vec.into()
+    }
+}
+
+impl From<PhpVal> for ZVal {
+    fn from(input: PhpVal) -> Self {
+        match input {
+            PhpVal::Long(val) => ZVal(zval {
+                value: zend_value { lval: val },
+                u1: _zval_struct__bindgen_ty_1 {
+                    v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
+                        type_: ZValType::Long as zend_uchar,
+                        type_flags: 0,
+                        u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
+                    },
+                },
+                u2: _zval_struct__bindgen_ty_2 { extra: 0 },
+            }),
+            _ => unimplemented!(),
+        }
     }
 }
