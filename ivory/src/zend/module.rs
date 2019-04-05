@@ -112,6 +112,5 @@ impl FunctionMeta {
 pub struct PhpModule {
     pub name: *const c_char,
     pub version: *const c_char,
-    pub functions: &'static [HandlerFunc],
     pub info: &'static [(&'static str, &'static str)],
 }

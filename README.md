@@ -21,7 +21,6 @@ fn hello_world() {
 ivory_module!({
     name: "demo",
     version: "0.0.1",
-    functions: &[hello_world, hello_other],
     info: &[("demo extension", "enabled")]
 });
 ```

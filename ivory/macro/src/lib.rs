@@ -2,14 +2,12 @@
 
 extern crate proc_macro;
 
+mod cache;
+
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::quote;
-use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{
-    parse2, parse_macro_input, AttributeArgs, Expr, FieldValue, FnArg, Ident, Item, ItemFn, LitStr,
-    Pat, Type,
-};
+use syn::{parse_macro_input, AttributeArgs, FnArg, Ident, Item, ItemFn, LitStr, Pat, Type};
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_attribute]
@@ -35,6 +33,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
     let span = item.span();
     let name = item.ident;
     let name_str = name.to_string();
+    cache::cache_function(name_str.clone());
     let meta_name = Ident::new(&format!("FUNCTION_META_{}", name_str.to_uppercase()), span);
     let body = item.block;
     let decl = item.decl;
@@ -122,13 +121,7 @@ pub fn ivory_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 
     let fields = group.stream();
 
-    let struct_def = quote! {
-        ::ivory::zend::PhpModule {
-            #fields
-        }
-    };
-    let function_names = get_function_names(struct_def);
-    let funcs = get_funcs(function_names, span);
+    let funcs = get_funcs(cache::get_functions(), span);
 
     let fields = into_c_str(fields);
 
@@ -193,45 +186,6 @@ fn into_c_str(input: TokenStream) -> TokenStream {
     let mut output = TokenStream::new();
     output.extend(tokens.into_iter());
     output
-}
-
-fn get_function_names(struct_def: TokenStream) -> Vec<String> {
-    let expr: Expr = parse2(struct_def).unwrap();
-    let expr = get_field_expr(expr, "functions").unwrap();
-    match expr {
-        Expr::Reference(ref_expr) => match *ref_expr.expr {
-            Expr::Array(arr) => arr
-                .elems
-                .into_iter()
-                .map(|element: Expr| {
-                    let tokens: TokenStream = quote!(#element);
-                    let tree = tokens.into_iter().next().unwrap();
-                    match tree {
-                        TokenTree::Ident(ident) => ident.to_string(),
-                        _ => panic!(),
-                    }
-                })
-                .collect(),
-            _ => panic!(),
-        },
-        _ => panic!(),
-    }
-}
-
-fn get_field_expr(expr: Expr, field_name: &str) -> Option<Expr> {
-    let fields: Punctuated<FieldValue, syn::token::Comma> = match expr {
-        Expr::Struct(expr) => expr.fields,
-        _ => panic!("invalid struct"),
-    };
-    for field in fields {
-        if let syn::Member::Named(ident) = &field.member {
-            let name = ident.to_string();
-            if &name == field_name {
-                return Some(field.expr);
-            }
-        }
-    }
-    None
 }
 
 fn get_funcs(names: Vec<String>, span: Span) -> TokenStream {

@@ -1,5 +1,5 @@
-use ivory::{ivory_export, ivory_module};
 use ivory::externs::printf;
+use ivory::{ivory_export, ivory_module};
 
 #[ivory_export]
 fn hello_other(other: String) {
@@ -14,6 +14,5 @@ fn hello_world() {
 ivory_module!({
     name: "demo",
     version: "0.0.1",
-    functions: &[hello_world, hello_other],
     info: &[("demo extension", "enabled")]
 });

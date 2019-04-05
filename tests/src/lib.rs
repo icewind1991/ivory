@@ -41,13 +41,5 @@ fn expect_option_bool(arg: Option<bool>) {
 ivory_module!({
     name: "tests",
     version: "0.0.1",
-    functions: &[
-        dump_arg,
-        expect_long,
-        expect_double,
-        expect_string,
-        expect_bool,
-        expect_option_bool
-    ],
     info: &[("test extension", "enabled")]
 });
