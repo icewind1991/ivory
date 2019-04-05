@@ -1,6 +1,7 @@
 use maplit::hashmap;
 use pretty_assertions::assert_eq;
 
+use ivory::zend::ZVal;
 use ivory::{ArrayKey, PhpVal};
 
 #[test]
@@ -65,4 +66,26 @@ fn cast_into_php_val() {
         }
         .into()
     );
+}
+
+#[test]
+fn cast_into_php_val_round_trip() {
+    let values: Vec<PhpVal> = vec![
+        1.into(),
+        (0.2).into(),
+        true.into(),
+        false.into(),
+        "foo".to_string().into(),
+    ];
+
+    for original in values {
+        let first_cast: ZVal = original.clone().into();
+        let cast_back: PhpVal = first_cast.as_php_val();
+        assert_eq!(original, cast_back);
+
+        // the first round trip should cast back into the same round trip
+        let second_cast: ZVal = cast_back.into();
+        let cast_back: PhpVal = second_cast.as_php_val();
+        assert_eq!(original, cast_back);
+    }
 }

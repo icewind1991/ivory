@@ -204,7 +204,7 @@ impl From<u8> for ZValType {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
 pub enum ArrayKey {
     String(String),
     Int(u64),
@@ -227,7 +227,7 @@ impl_from_array_key!(u16, Int, u64);
 impl_from_array_key!(u8, Int, u64);
 impl_from_array_key!(usize, Int, u64);
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum PhpVal {
     Undef,
     Null,
