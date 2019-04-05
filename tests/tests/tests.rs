@@ -69,6 +69,11 @@ fn test_cast_option() {
     assert_debug_eq::<Option<bool>>(None, &result);
 }
 
+#[test]
+fn test_imported() {
+    assert_eq!("imported".to_string(), run_php("imported_fn()").unwrap());
+}
+
 /// Test that the result is the debug formatting of expected
 fn assert_debug_eq<T: Debug>(expected: T, result: &str) {
     assert_eq!(format!("{:?}", expected), result);
