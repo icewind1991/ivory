@@ -12,6 +12,7 @@ fn zval_parsing() {
         "1" => PhpVal::Long(1),
         "1.1" => PhpVal::Double(1.1),
         "\"test\"" => PhpVal::String("test".into()),
+        "\"longer_string_to_cover_some_more_bytes\"" => PhpVal::String("longer_string_to_cover_some_more_bytes".into()),
         "true" => PhpVal::Bool(true),
         "false" => PhpVal::Bool(false),
         "null" => PhpVal::Null,

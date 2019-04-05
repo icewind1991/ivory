@@ -3,8 +3,7 @@ use std::fmt;
 use std::fmt::Display;
 use std::hash::Hash;
 use std::intrinsics::transmute;
-use std::mem::size_of;
-use std::os::raw::c_char;
+use std::mem::{forget, size_of};
 use std::str;
 
 use ivory_sys::*;
@@ -60,11 +59,51 @@ impl Iterator for IntoArgIterator {
     }
 }
 
-unsafe fn zend_str_as_string(str: &zend_string) -> String {
-    let len = str.len;
-    let base: *const c_char = &str.val[0];
-    let slice: &[u8] = std::slice::from_raw_parts(base as *const u8, len);
+unsafe fn zend_str_as_string(string: *const zend_string) -> String {
+    let len = (*string).len;
+    let base: *const u8 = transmute(string);
+    let str_start = base.add(size_of::<ZendStringHeader>());
+
+    let slice: &[u8] = std::slice::from_raw_parts(str_start, len);
     str::from_utf8_unchecked(slice).to_string()
+}
+
+#[repr(C)]
+pub struct ZendStringHeader {
+    gc: zend_refcounted_h,
+    h: zend_ulong,
+    len: usize,
+}
+
+fn string_into_zend_str(string: String) -> *mut zend_string {
+    let len = string.len();
+
+    let mut mem: Vec<u8> = Vec::with_capacity(len + size_of::<ZendStringHeader>());
+
+    let header = ZendStringHeader {
+        gc: zend_refcounted_h {
+            refcount: 1, // ?? no clue actually,
+            u: _zend_refcounted_h__bindgen_ty_1 { type_info: 0 },
+        },
+        h: 0,
+        len,
+    };
+    let header_bytes: [u8; size_of::<ZendStringHeader>()] = unsafe { transmute(header) };
+    mem.extend_from_slice(&header_bytes);
+
+    let bytes = string.into_bytes();
+
+    mem.extend_from_slice(bytes.as_slice());
+
+    let ptr = mem.as_ptr();
+
+    // rust shouldn't deallocate the data
+    // this isn't perfect since all the extra vec bits (length, capacity)
+    // will be leaked
+    // maybe this should be copied instead
+    forget(mem);
+
+    unsafe { transmute(ptr) }
 }
 
 #[repr(transparent)]
@@ -84,8 +123,7 @@ impl ZVal {
     }
 
     pub unsafe fn as_str(&self) -> String {
-        let str = *self.0.value.str;
-        zend_str_as_string(&str)
+        zend_str_as_string(self.0.value.str)
     }
 
     pub unsafe fn as_array(&self) -> Vec<(ArrayKey, PhpVal)> {
@@ -352,6 +390,13 @@ impl From<ZValType> for _zval_struct__bindgen_ty_1 {
                     u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
                 },
             },
+            ZValType::String => _zval_struct__bindgen_ty_1 {
+                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
+                    type_: ZValType::String as zend_uchar,
+                    type_flags: 0,
+                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
+                },
+            },
             _ => unimplemented!(),
         }
     }
@@ -396,6 +441,13 @@ impl From<PhpVal> for ZVal {
                         u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
                     },
                 },
+                u2: _zval_struct__bindgen_ty_2 { extra: 0 },
+            }),
+            PhpVal::String(val) => ZVal(zval {
+                value: zend_value {
+                    str: string_into_zend_str(val),
+                },
+                u1: ty.into(),
                 u2: _zval_struct__bindgen_ty_2 { extra: 0 },
             }),
             _ => unimplemented!(),
