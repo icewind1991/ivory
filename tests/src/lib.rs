@@ -40,6 +40,32 @@ fn expect_bool(arg: bool) {
 fn expect_option_bool(arg: Option<bool>) {
     dump(arg);
 }
+
+#[ivory_export]
+fn return_long() -> i64 {
+    1
+}
+
+#[ivory_export]
+fn return_double() -> f64 {
+    0.5
+}
+
+#[ivory_export]
+fn return_true() -> bool {
+    true
+}
+
+#[ivory_export]
+fn return_false() -> bool {
+    false
+}
+
+#[ivory_export]
+fn return_string() -> String {
+    "some string data".to_string()
+}
+
 ivory_module!({
     name: "tests",
     version: "0.0.1",

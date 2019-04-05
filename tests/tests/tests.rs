@@ -70,6 +70,42 @@ fn test_cast_option() {
     assert_debug_eq::<Option<bool>>(None, &result);
 }
 
+macro_rules! test_return {
+    ($name:ident, $method:expr, $expected:literal) => {
+        #[test]
+        fn $name() {
+            let result = run_php(&format!("var_dump({}())", $method)).unwrap();
+            assert_eq!($expected, &result);
+        }
+    };
+}
+
+test_return!(
+    test_return_long,
+    "return_long",
+    "Command line code:1:\nint(1)\n"
+);
+test_return!(
+    test_return_double,
+    "return_double",
+    "Command line code:1:\ndouble(0.5)\n"
+);
+test_return!(
+    test_return_true,
+    "return_true",
+    "Command line code:1:\nbool(true)\n"
+);
+test_return!(
+    test_return_false,
+    "return_false",
+    "Command line code:1:\nbool(false)\n"
+);
+test_return!(
+    test_return_string,
+    "return_string",
+    "Command line code:1:\nstring(16) \"some string data\"\n"
+);
+
 #[test]
 fn test_imported() {
     assert_eq!("imported".to_string(), run_php("imported_fn()").unwrap());
