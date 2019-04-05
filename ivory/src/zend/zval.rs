@@ -321,14 +321,77 @@ impl<K: Into<ArrayKey> + Hash + Eq + Ord, T: Into<PhpVal>> From<HashMap<K, T>> f
     }
 }
 
+impl From<ZValType> for _zval_struct__bindgen_ty_1 {
+    fn from(ty: ZValType) -> Self {
+        match ty {
+            ZValType::Long => _zval_struct__bindgen_ty_1 {
+                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
+                    type_: ZValType::Long as zend_uchar,
+                    type_flags: 0,
+                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
+                },
+            },
+            ZValType::Double => _zval_struct__bindgen_ty_1 {
+                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
+                    type_: ZValType::Double as zend_uchar,
+                    type_flags: 0,
+                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
+                },
+            },
+            ZValType::Undef => _zval_struct__bindgen_ty_1 {
+                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
+                    type_: ZValType::Undef as zend_uchar,
+                    type_flags: 0,
+                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
+                },
+            },
+            ZValType::Null => _zval_struct__bindgen_ty_1 {
+                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
+                    type_: ZValType::Null as zend_uchar,
+                    type_flags: 0,
+                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
+                },
+            },
+            _ => unimplemented!(),
+        }
+    }
+}
+
 impl From<PhpVal> for ZVal {
     fn from(input: PhpVal) -> Self {
+        let ty = input.get_type();
         match input {
             PhpVal::Long(val) => ZVal(zval {
                 value: zend_value { lval: val },
+                u1: ty.into(),
+                u2: _zval_struct__bindgen_ty_2 { extra: 0 },
+            }),
+            PhpVal::Double(val) => ZVal(zval {
+                value: zend_value { dval: val },
+                u1: ty.into(),
+                u2: _zval_struct__bindgen_ty_2 { extra: 0 },
+            }),
+            PhpVal::Undef => ZVal(zval {
+                value: zend_value { lval: 0 },
+                u1: ty.into(),
+                u2: _zval_struct__bindgen_ty_2 { extra: 0 },
+            }),
+            PhpVal::Null => ZVal(zval {
+                value: zend_value { lval: 0 },
+                u1: ty.into(),
+                u2: _zval_struct__bindgen_ty_2 { extra: 0 },
+            }),
+            PhpVal::Bool(val) => ZVal(zval {
+                value: zend_value { lval: 0 },
                 u1: _zval_struct__bindgen_ty_1 {
                     v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
-                        type_: ZValType::Long as zend_uchar,
+                        type_: {
+                            if val {
+                                ZValType::True
+                            } else {
+                                ZValType::False
+                            }
+                        } as zend_uchar,
                         type_flags: 0,
                         u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
                     },

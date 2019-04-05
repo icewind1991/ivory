@@ -12,8 +12,8 @@ fn hello_world() {
 }
 
 #[ivory_export]
-fn add1(input: i64) -> i64 {
-    input + 1
+fn is_positive(input: i64) -> bool {
+    input >= 0
 }
 
 #[ivory_export]
