@@ -29,27 +29,39 @@ pub fn ivory_export(
     output
 }
 
+#[derive(Clone)]
+pub(crate) struct ArgumentDefinition {
+    name: String,
+    is_ref: bool,
+}
+
+#[derive(Clone)]
+pub(crate) struct FunctionDefinition {
+    name: String,
+    args: Vec<ArgumentDefinition>,
+}
+
 fn export_fn(item: ItemFn) -> TokenStream {
     let span = item.span();
     let name = item.ident;
     let name_str = name.to_string();
-    cache::cache_function(name_str.clone());
-    let meta_name = Ident::new(&format!("FUNCTION_META_{}", name_str.to_uppercase()), span);
     let body = item.block;
     let decl = item.decl;
     if decl.generics.gt_token.is_some() {
         unimplemented!("generics are not supported for exported functions");
     }
 
-    let args: Vec<(String, Type, bool, Span)> = decl.inputs.into_iter().map(get_arg_info).collect();
+    let args: Vec<(ArgumentDefinition, Type)> = decl.inputs.into_iter().map(get_arg_info).collect();
+    let arg_defs: Vec<ArgumentDefinition> = args.clone().into_iter().map(|(def, _)| def).collect();
+    let func_def = FunctionDefinition {
+        name: name_str.clone(),
+        args: arg_defs,
+    };
+    cache::cache_function(func_def);
     let arg_count = args.len() as u32;
 
-    let arg_defs = args.iter().map(|(name, _type, is_ref, _)| {
-        quote!(::ivory::zend::ArgInfo::new(::ivory::c_str!(#name), false, false, #is_ref))
-    });
-
-    let arg_cast = args.iter().enumerate().map(|(_index, (name, ty, _is_ref, span))| {
-        let arg_ident = Ident::new(name, span.clone());
+    let arg_cast = args.iter().enumerate().map(|(_index, (arg, ty))| {
+        let arg_ident = Ident::new(&arg.name, span);
         quote!(
             let #arg_ident: #ty = {
                 let result: Result<#ty, ::ivory::CastError> = args.next().unwrap().into();
@@ -78,25 +90,20 @@ fn export_fn(item: ItemFn) -> TokenStream {
             #(#arg_cast);*
             let result = #body;
         }
-
-        const #meta_name: ::ivory::zend::FunctionMeta = ::ivory::zend::FunctionMeta{
-            name: {concat!(#name_str, "\0").as_ptr() as *const ::std::os::raw::c_char},
-            func: #name,
-            args: &[ #(#arg_defs),*]
-        };
     }
 }
 
-fn get_arg_info(arg: FnArg) -> (String, Type, bool, Span) {
+fn get_arg_info(arg: FnArg) -> (ArgumentDefinition, Type) {
     match arg {
         FnArg::Captured(cap) => {
             let arg_type = cap.ty;
             match cap.pat {
                 Pat::Ident(ident_pat) => (
-                    ident_pat.ident.to_string(),
+                    ArgumentDefinition {
+                        name: ident_pat.ident.to_string(),
+                        is_ref: ident_pat.by_ref.is_some(),
+                    },
                     arg_type,
-                    ident_pat.by_ref.is_some(),
-                    ident_pat.span(),
                 ),
                 Pat::Ref(_ref_pat) => unimplemented!(),
                 _ => panic!(),
@@ -134,20 +141,16 @@ pub fn ivory_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             ::ivory::info::php_print_module_info(&MODULE_INFO.info);
         }
 
+        #funcs
+
         #[no_mangle]
         pub extern "C" fn get_module() -> *mut ::ivory::zend::ModuleInternal {
             let mut entry = Box::new(::ivory::zend::ModuleInternal::new(MODULE_INFO.name, MODULE_INFO.version));
 
             entry.set_info_func(php_module_info);
 
-            let args = vec![
-                ::ivory::zend::ArgInfo::new(::ivory::c_str!("name"), false, false, false),
-                ::ivory::zend::ArgInfo::new(::ivory::c_str!("foo"), false, false, false),
-            ];
 
-            #funcs;
-
-            entry.set_functions(funcs);
+            entry.set_functions(&IVORY_FUCTIONS);
 
             Box::into_raw(entry)
         }
@@ -188,17 +191,44 @@ fn into_c_str(input: TokenStream) -> TokenStream {
     output
 }
 
-fn get_funcs(names: Vec<String>, span: Span) -> TokenStream {
-    let definitions = names.into_iter().map(|name| {
-        let meta_name = Ident::new(&format!("FUNCTION_META_{}", name.to_uppercase()), span);
-        quote! {
-            #meta_name.as_function()
+fn get_funcs(funcs: Vec<FunctionDefinition>, span: Span) -> TokenStream {
+    let func_count = funcs.len() + 1;
+
+    let definitions = funcs.into_iter().map(|func| {
+        let name = func.name;
+        let name_ident = Ident::new(&name, span.clone());
+        let num_args = func.args.len();
+        let arg_defs = func.args.iter().map(|arg| {
+            let name = &arg.name;
+            let is_ref = &arg.is_ref;
+            quote!(::ivory::zend::ArgInfo::new(::ivory::c_str!(#name), false, false, #is_ref))
+        });
+
+        if num_args > 0 {
+            quote! {
+                ::ivory::zend::Function::new_with_args(
+                    {concat!(#name, "\0").as_ptr() as *const ::std::os::raw::c_char},
+                    #name_ident as *const ::std::os::raw::c_void,
+                    &[::ivory::zend::ArgInfo::new(#num_args as *const ::std::os::raw::c_char, false, false, false),
+                        #(#arg_defs),*
+                    ],
+                    #num_args as u32
+                )
+            }
+        } else {
+            quote! {
+                ::ivory::zend::Function::new(
+                    {concat!(#name, "\0").as_ptr() as *const ::std::os::raw::c_char},
+                    #name_ident as *const ::std::os::raw::c_void,
+                )
+            }
         }
     });
 
     quote! {
-        let funcs = vec![
-            #(#definitions),*
+        const IVORY_FUCTIONS: [::ivory::zend::Function; #func_count] = [
+            #(#definitions),*,
+            ::ivory::zend::Function::end()
         ];
     }
 }

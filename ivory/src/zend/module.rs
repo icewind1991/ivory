@@ -3,7 +3,6 @@ use std::mem;
 use std::os::raw::{c_char, c_int, c_uchar, c_uint, c_ushort, c_void};
 
 use crate::zend::function::{ArgInfo, Function};
-use crate::zend::{ExecuteData, ZVal};
 
 pub(crate) type StartupFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
 pub(crate) type ShutdownFunc = extern "C" fn(type_: c_int, module_number: c_int) -> c_int;
@@ -11,7 +10,6 @@ pub(crate) type InfoFunc = extern "C" fn();
 pub(crate) type GlobalsCtorFunc = extern "C" fn(global: *const c_void) -> c_void;
 pub(crate) type GlobalsDtorFunc = extern "C" fn(global: *const c_void) -> c_void;
 pub(crate) type PostDeactivateFunc = extern "C" fn() -> c_int;
-pub(crate) type HandlerFunc = extern "C" fn(execute_data: *const ExecuteData, retval: *mut ZVal);
 
 pub struct ModuleDep {}
 
@@ -87,24 +85,24 @@ impl ModuleInternal {
         self.info_func = Some(func);
     }
 
-    pub fn set_functions(&mut self, mut funcs: Vec<Function>) {
-        funcs.push(Function::end());
-        self.functions = Box::into_raw(funcs.into_boxed_slice()) as *const Function;
+    pub fn set_functions(&mut self, funcs: &'static [Function]) {
+        self.functions = funcs.as_ptr();
     }
 }
 
 pub struct FunctionMeta {
     pub name: *const c_char,
-    pub func: HandlerFunc,
+    pub func: *const c_void,
     pub args: &'static [ArgInfo],
 }
 
 impl FunctionMeta {
     pub fn as_function(&self) -> Function {
-        if self.args.len() == 0 {
+        if self.args.len() == 1 {
+            // first arg is argument count which is always added
             Function::new(self.name, self.func)
         } else {
-            Function::new_with_args(self.name, self.func, self.args)
+            Function::new_with_args(self.name, self.func, self.args, self.args.len() as u32 - 1)
         }
     }
 }

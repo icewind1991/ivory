@@ -1,8 +1,11 @@
 use std::fmt::Debug;
 
+use crate::imported::imported_fn;
 use ivory::externs::printf;
 use ivory::PhpVal;
 use ivory::{ivory_export, ivory_module};
+
+mod imported;
 
 fn dump<T: Debug>(arg: T) {
     printf(format!("{:?}", arg));
@@ -37,7 +40,6 @@ fn expect_bool(arg: bool) {
 fn expect_option_bool(arg: Option<bool>) {
     dump(arg);
 }
-
 ivory_module!({
     name: "tests",
     version: "0.0.1",

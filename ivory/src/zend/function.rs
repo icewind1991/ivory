@@ -1,17 +1,15 @@
 use std;
-use std::os::raw::{c_char, c_uchar};
-
-use crate::zend::HandlerFunc;
+use std::os::raw::{c_char, c_uchar, c_void};
 
 #[derive(Clone)]
 #[repr(C)]
 pub struct ArgInfo {
-    name: *const c_char,
-    class_name: *const c_char,
-    type_hint: c_uchar,
-    pass_by_reference: c_uchar,
-    allow_null: c_uchar,
-    is_variadic: c_uchar,
+    pub name: *const c_char,
+    pub class_name: *const c_char,
+    pub type_hint: c_uchar,
+    pub pass_by_reference: c_uchar,
+    pub allow_null: c_uchar,
+    pub is_variadic: c_uchar,
 }
 
 impl ArgInfo {
@@ -35,50 +33,44 @@ impl ArgInfo {
 #[repr(C)]
 pub struct Function {
     fname: *const c_char,
-    handler: Option<HandlerFunc>,
+    handler: *const c_void,
     arg_info: *const ArgInfo,
     num_args: u32,
     flags: u32,
 }
 
 impl Function {
-    pub fn new(name: *const c_char, handler: HandlerFunc) -> Function {
+    pub const fn new(name: *const c_char, handler: *const c_void) -> Function {
         Function {
             fname: name,
-            handler: Some(handler),
+            handler,
             arg_info: std::ptr::null(),
             num_args: 0,
             flags: 0,
         }
     }
 
-    pub fn new_with_args(
+    pub const fn new_with_args(
         name: *const c_char,
-        handler: HandlerFunc,
+        handler: *const c_void,
         args: &'static [ArgInfo],
+        num_args: u32,
     ) -> Function {
-        let num_args = args.len() as u32;
-        let mut args_vec = Vec::new();
-
-        let arg_count = ArgInfo::new(num_args as *const c_char, false, false, false);
-        args_vec.push(arg_count);
-        args_vec.extend_from_slice(args);
-
-        let arg_ptr = Box::into_raw(args_vec.into_boxed_slice()) as *const ArgInfo;
+        let arg_ptr = args.as_ptr();
 
         Function {
             fname: name,
-            handler: Some(handler),
+            handler,
             arg_info: arg_ptr,
             num_args,
             flags: 0,
         }
     }
 
-    pub(crate) fn end() -> Function {
+    pub const fn end() -> Function {
         Function {
             fname: std::ptr::null(),
-            handler: None,
+            handler: std::ptr::null(),
             arg_info: std::ptr::null(),
             num_args: 0,
             flags: 0,
