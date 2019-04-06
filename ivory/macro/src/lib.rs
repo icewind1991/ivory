@@ -7,7 +7,9 @@ mod cache;
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{parse_macro_input, AttributeArgs, FnArg, Ident, Item, ItemFn, LitStr, Pat, Type};
+use syn::{
+    parse_macro_input, AttributeArgs, FnArg, Ident, Item, ItemFn, LitStr, Pat, ReturnType, Type,
+};
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_attribute]
@@ -76,6 +78,12 @@ fn export_fn(item: ItemFn) -> TokenStream {
         )
     });
 
+    let return_type = decl.output;
+    let return_type = match return_type {
+        ReturnType::Default => quote!(),
+        ReturnType::Type(_, return_type) => quote!(: #return_type),
+    };
+
     quote! {
         #[no_mangle]
         pub unsafe extern "C" fn #name(data: *const ::ivory::zend::ExecuteData, retval: *mut ::ivory::zend::ZVal) {
@@ -88,7 +96,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
             }
             let mut args = data.args();
             #(#arg_cast);*
-            let result = #body;
+            let result #return_type = #body;
 
             let php_val = ::ivory::PhpVal::from(result);
             let zval = ::ivory::zend::ZVal::from(php_val);

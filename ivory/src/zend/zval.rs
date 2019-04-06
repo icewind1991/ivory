@@ -258,6 +258,36 @@ impl From<PhpVal> for ZVal {
                 u1: ty.into(),
                 u2: _zval_struct__bindgen_ty_2 { extra: 0 },
             }),
+            PhpVal::Array(vec) => {
+                // unlike reading, when creating a zval array all the extra bits actually matter
+                // so we just use zend's builtin methods for creating arrays
+                unsafe {
+                    let map: *mut _zend_array = _zend_new_array(vec.len() as u32);
+                    let mut arr = zval {
+                        value: zend_value { arr: map },
+                        u1: ty.into(),
+                        u2: _zval_struct__bindgen_ty_2 { extra: 0 },
+                    };
+                    let arr_ptr: *mut zval = &mut arr;
+                    for (key, val) in vec.into_iter() {
+                        let val_ptr: *mut zval =
+                            Box::into_raw(Box::new(ZVal::from(val))) as *mut zval;
+                        match key {
+                            ArrayKey::Int(index) => {
+                                add_index_zval(arr_ptr, index, val_ptr);
+                            }
+                            ArrayKey::String(key) => {
+                                let key_len = key.len();
+                                let bytes =
+                                    Box::into_raw(key.into_bytes().into_boxed_slice()) as *const i8;
+                                add_assoc_zval_ex(arr_ptr, bytes, key_len, val_ptr);
+                            }
+                        }
+                    }
+
+                    ZVal(arr)
+                }
+            }
             _ => unimplemented!(),
         }
     }

@@ -73,12 +73,12 @@ impl From<PhpVal> for Result<PhpVal, CastError> {
 }
 
 macro_rules! impl_from_phpval {
-    ($type:ty, $variant:ident) => {
+    ($type:ty, $variant:ident, $type2:ty) => {
         // non nullable version
-        impl From<PhpVal> for Result<$type, CastError> {
+        impl From<PhpVal> for Result<$type2, CastError> {
             fn from(val: PhpVal) -> Self {
                 match val {
-                    PhpVal::$variant(val) => Ok(val),
+                    PhpVal::$variant(val) => Ok(val as $type2),
                     _ => Err(CastError {
                         actual: val.get_type(),
                     }),
@@ -87,12 +87,12 @@ macro_rules! impl_from_phpval {
         }
 
         // nullable version
-        impl From<PhpVal> for Result<Option<$type>, CastError> {
+        impl From<PhpVal> for Result<Option<$type2>, CastError> {
             fn from(val: PhpVal) -> Self {
                 match val {
                     PhpVal::Null => Ok(None),
                     PhpVal::Undef => Ok(None),
-                    PhpVal::$variant(val) => Ok(Some(val)),
+                    PhpVal::$variant(val) => Ok(Some(val as $type2)),
                     _ => Err(CastError {
                         actual: val.get_type(),
                     }),
@@ -100,18 +100,26 @@ macro_rules! impl_from_phpval {
             }
         }
 
-        impl From<$type> for PhpVal {
-            fn from(input: $type) -> Self {
-                PhpVal::$variant(input)
+        impl From<$type2> for PhpVal {
+            fn from(input: $type2) -> Self {
+                PhpVal::$variant(input as $type)
             }
         }
     };
 }
 
-impl_from_phpval!(i64, Long);
-impl_from_phpval!(f64, Double);
-impl_from_phpval!(bool, Bool);
-impl_from_phpval!(String, String);
+impl_from_phpval!(i64, Long, i64);
+impl_from_phpval!(i64, Long, i32);
+impl_from_phpval!(i64, Long, i16);
+impl_from_phpval!(i64, Long, i8);
+impl_from_phpval!(i64, Long, u64);
+impl_from_phpval!(i64, Long, u32);
+impl_from_phpval!(i64, Long, u16);
+impl_from_phpval!(i64, Long, u8);
+impl_from_phpval!(f64, Double, f64);
+impl_from_phpval!(f64, Double, f32);
+impl_from_phpval!(bool, Bool, bool);
+impl_from_phpval!(String, String, String);
 
 impl From<()> for PhpVal {
     fn from(_input: ()) -> Self {

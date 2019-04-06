@@ -2,8 +2,8 @@ use std::fmt::Debug;
 
 use crate::imported::imported_fn;
 use ivory::externs::printf;
-use ivory::PhpVal;
 use ivory::{ivory_export, ivory_module};
+use ivory::{ArrayKey, PhpVal};
 
 mod imported;
 
@@ -64,6 +64,30 @@ fn return_false() -> bool {
 #[ivory_export]
 fn return_string() -> String {
     "some string data".to_string()
+}
+
+#[ivory_export]
+fn return_array_simple() -> Vec<i32> {
+    vec![-10, 10, 0]
+}
+
+#[ivory_export]
+fn return_array_gap() -> Vec<(u32, i32)> {
+    vec![(0u32, -10), (1, 10), (10, 0)]
+}
+
+#[ivory_export]
+fn return_array_mixed() -> Vec<(ArrayKey, PhpVal)> {
+    vec![
+        (0u32.into(), PhpVal::from(-10)),
+        ("foo".to_string().into(), PhpVal::from(10)),
+        ("bar".to_string().into(), PhpVal::from(0.5)),
+    ]
+}
+
+#[ivory_export]
+fn return_array_nested() -> Vec<Vec<i32>> {
+    vec![vec![1, 2], vec![3, 4]]
 }
 
 ivory_module!({

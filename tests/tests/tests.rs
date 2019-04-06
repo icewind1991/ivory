@@ -105,6 +105,26 @@ test_return!(
     "return_string",
     "Command line code:1:\nstring(16) \"some string data\"\n"
 );
+test_return!(
+    test_return_array_simple,
+    "return_array_simple",
+    "Command line code:1:\narray(3) {\n  [0] =>\n  int(-10)\n  [1] =>\n  int(10)\n  [2] =>\n  int(0)\n}\n"
+);
+test_return!(
+    test_return_array_gap,
+    "return_array_gap",
+    "Command line code:1:\narray(3) {\n  [0] =>\n  int(-10)\n  [1] =>\n  int(10)\n  [10] =>\n  int(0)\n}\n"
+);
+test_return!(
+    test_return_array_mixed,
+    "return_array_mixed",
+    "Command line code:1:\narray(3) {\n  [0] =>\n  int(-10)\n  \'foo\' =>\n  int(10)\n  \'bar\' =>\n  double(0.5)\n}\n"
+);
+test_return!(
+    test_return_array_nested,
+    "return_array_nested",
+    "Command line code:1:\narray(2) {\n  [0] =>\n  array(2) {\n    [0] =>\n    int(1)\n    [1] =>\n    int(2)\n  }\n  [1] =>\n  array(2) {\n    [0] =>\n    int(3)\n    [1] =>\n    int(4)\n  }\n}\n"
+);
 
 #[test]
 fn test_imported() {
