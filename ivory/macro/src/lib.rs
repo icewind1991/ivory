@@ -78,7 +78,7 @@ fn export_fn(item: ItemFn) -> TokenStream {
 
     quote! {
         #[no_mangle]
-        pub extern "C" fn #name(data: *const ::ivory::zend::ExecuteData, retval: *mut ::ivory::zend::ZVal) {
+        pub unsafe extern "C" fn #name(data: *const ::ivory::zend::ExecuteData, retval: *mut ::ivory::zend::ZVal) {
             let data: &::ivory::zend::ExecuteData = unsafe { data.as_ref() }.unwrap();
             // the less than case is handled during argument casting
             // this is needed for optional arguments

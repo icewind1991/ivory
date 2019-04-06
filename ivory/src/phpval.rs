@@ -14,6 +14,7 @@ macro_rules! impl_from_array_key {
     ($type:ty, $variant:ident, $type2:ty) => {
         impl From<$type> for ArrayKey {
             fn from(input: $type) -> Self {
+                #[allow(clippy::cast_lossless)]
                 ArrayKey::$variant(input as $type2)
             }
         }

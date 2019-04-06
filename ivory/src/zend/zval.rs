@@ -74,6 +74,7 @@ pub struct ZendStringHeader {
     len: usize,
 }
 
+#[allow(clippy::cast_ptr_alignment)] // alignment of pointer casts is guaranteed by the layout
 fn string_into_zend_str(string: String) -> *mut zend_string {
     let len = string.len();
 

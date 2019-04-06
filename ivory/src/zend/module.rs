@@ -45,9 +45,10 @@ pub struct ModuleInternal {
 
 impl ModuleInternal {
     pub fn new(name: *const c_char, version: *const c_char) -> ModuleInternal {
+        #[allow(clippy::inconsistent_digit_grouping)]
         ModuleInternal {
             size: mem::size_of::<ModuleInternal>() as u16,
-            zend_api: 20180731,
+            zend_api: 2018_07_31,
             zend_debug: 0,
             zts: 0,
             ini_entry: std::ptr::null(),
