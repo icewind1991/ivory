@@ -361,43 +361,12 @@ impl<K: Into<ArrayKey> + Hash + Eq + Ord, T: Into<PhpVal>> From<HashMap<K, T>> f
 
 impl From<ZValType> for _zval_struct__bindgen_ty_1 {
     fn from(ty: ZValType) -> Self {
-        match ty {
-            ZValType::Long => _zval_struct__bindgen_ty_1 {
-                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
-                    type_: ZValType::Long as zend_uchar,
-                    type_flags: 0,
-                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
-                },
+        _zval_struct__bindgen_ty_1 {
+            v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
+                type_: ty as zend_uchar,
+                type_flags: 0,
+                u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
             },
-            ZValType::Double => _zval_struct__bindgen_ty_1 {
-                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
-                    type_: ZValType::Double as zend_uchar,
-                    type_flags: 0,
-                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
-                },
-            },
-            ZValType::Undef => _zval_struct__bindgen_ty_1 {
-                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
-                    type_: ZValType::Undef as zend_uchar,
-                    type_flags: 0,
-                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
-                },
-            },
-            ZValType::Null => _zval_struct__bindgen_ty_1 {
-                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
-                    type_: ZValType::Null as zend_uchar,
-                    type_flags: 0,
-                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
-                },
-            },
-            ZValType::String => _zval_struct__bindgen_ty_1 {
-                v: _zval_struct__bindgen_ty_1__bindgen_ty_1 {
-                    type_: ZValType::String as zend_uchar,
-                    type_flags: 0,
-                    u: _zval_struct__bindgen_ty_1__bindgen_ty_1__bindgen_ty_1 { extra: 0 },
-                },
-            },
-            _ => unimplemented!(),
         }
     }
 }
