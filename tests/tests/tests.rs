@@ -75,55 +75,39 @@ macro_rules! test_return {
         #[test]
         fn $name() {
             let result = run_php(&format!("var_dump({}())", $method)).unwrap();
-            assert_eq!($expected, &result);
+            assert_eq!(concat!("Command line code:1:\n", $expected), &result);
         }
     };
 }
 
-test_return!(
-    test_return_long,
-    "return_long",
-    "Command line code:1:\nint(1)\n"
-);
-test_return!(
-    test_return_double,
-    "return_double",
-    "Command line code:1:\ndouble(0.5)\n"
-);
-test_return!(
-    test_return_true,
-    "return_true",
-    "Command line code:1:\nbool(true)\n"
-);
-test_return!(
-    test_return_false,
-    "return_false",
-    "Command line code:1:\nbool(false)\n"
-);
+test_return!(test_return_long, "return_long", "int(1)\n");
+test_return!(test_return_double, "return_double", "double(0.5)\n");
+test_return!(test_return_true, "return_true", "bool(true)\n");
+test_return!(test_return_false, "return_false", "bool(false)\n");
 test_return!(
     test_return_string,
     "return_string",
-    "Command line code:1:\nstring(16) \"some string data\"\n"
+    "string(16) \"some string data\"\n"
 );
 test_return!(
     test_return_array_simple,
     "return_array_simple",
-    "Command line code:1:\narray(3) {\n  [0] =>\n  int(-10)\n  [1] =>\n  int(10)\n  [2] =>\n  int(0)\n}\n"
+    "array(3) {\n  [0] =>\n  int(-10)\n  [1] =>\n  int(10)\n  [2] =>\n  int(0)\n}\n"
 );
 test_return!(
     test_return_array_gap,
     "return_array_gap",
-    "Command line code:1:\narray(3) {\n  [0] =>\n  int(-10)\n  [1] =>\n  int(10)\n  [10] =>\n  int(0)\n}\n"
+    "array(3) {\n  [0] =>\n  int(-10)\n  [1] =>\n  int(10)\n  [10] =>\n  int(0)\n}\n"
 );
 test_return!(
     test_return_array_mixed,
     "return_array_mixed",
-    "Command line code:1:\narray(3) {\n  [0] =>\n  int(-10)\n  \'foo\' =>\n  int(10)\n  \'bar\' =>\n  double(0.5)\n}\n"
+    "array(3) {\n  [0] =>\n  int(-10)\n  \'foo\' =>\n  int(10)\n  \'bar\' =>\n  double(0.5)\n}\n"
 );
 test_return!(
     test_return_array_nested,
     "return_array_nested",
-    "Command line code:1:\narray(2) {\n  [0] =>\n  array(2) {\n    [0] =>\n    int(1)\n    [1] =>\n    int(2)\n  }\n  [1] =>\n  array(2) {\n    [0] =>\n    int(3)\n    [1] =>\n    int(4)\n  }\n}\n"
+    "array(2) {\n  [0] =>\n  array(2) {\n    [0] =>\n    int(1)\n    [1] =>\n    int(2)\n  }\n  [1] =>\n  array(2) {\n    [0] =>\n    int(3)\n    [1] =>\n    int(4)\n  }\n}\n"
 );
 
 #[test]
