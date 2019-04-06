@@ -1,8 +1,9 @@
+use std::alloc::{alloc, Layout};
 use std::fmt;
 use std::fmt::Display;
 use std::intrinsics::transmute;
-use std::mem::{forget, size_of};
-use std::str;
+use std::mem::size_of;
+use std::{ptr, str};
 
 use ivory_sys::*;
 
@@ -18,8 +19,8 @@ impl ExecuteData {
 
     fn get_arg_base(&self) -> *const ZVal {
         let offset = (size_of::<zend_execute_data>() + size_of::<zval>() - 1) / size_of::<zval>();
-        let self_ptr: *const zend_execute_data = &self.0;
-        unsafe { transmute::<_, *const ZVal>(self_ptr).add(offset) }
+        let self_ptr = (&self.0 as *const zend_execute_data) as *const ZVal;
+        unsafe { self_ptr.add(offset) }
     }
 
     pub unsafe fn get_arg(&self, i: u32) -> &ZVal {
@@ -59,7 +60,7 @@ impl Iterator for IntoArgIterator {
 
 unsafe fn zend_str_as_string(string: *const zend_string) -> String {
     let len = (*string).len;
-    let base: *const u8 = transmute(string);
+    let base = string as *const u8;
     let str_start = base.add(size_of::<ZendStringHeader>());
 
     let slice: &[u8] = std::slice::from_raw_parts(str_start, len);
@@ -76,7 +77,11 @@ pub struct ZendStringHeader {
 fn string_into_zend_str(string: String) -> *mut zend_string {
     let len = string.len();
 
-    let mut mem: Vec<u8> = Vec::with_capacity(len + size_of::<ZendStringHeader>());
+    let header_size = size_of::<ZendStringHeader>();
+
+    let layout = Layout::from_size_align(len + header_size, size_of::<zend_string>())
+        .expect("invalid layout");
+    let raw = unsafe { alloc(layout) };
 
     let header = ZendStringHeader {
         gc: zend_refcounted_h {
@@ -86,22 +91,12 @@ fn string_into_zend_str(string: String) -> *mut zend_string {
         h: 0,
         len,
     };
-    let header_bytes: [u8; size_of::<ZendStringHeader>()] = unsafe { transmute(header) };
-    mem.extend_from_slice(&header_bytes);
+    unsafe {
+        ptr::write(raw as *mut ZendStringHeader, header);
+        ptr::copy(string.as_ptr(), raw.add(header_size), len);
+    };
 
-    let bytes = string.into_bytes();
-
-    mem.extend_from_slice(bytes.as_slice());
-
-    let ptr = mem.as_ptr();
-
-    // rust shouldn't deallocate the data
-    // this isn't perfect since all the extra vec bits (length, capacity)
-    // will be leaked
-    // maybe this should be copied instead
-    forget(mem);
-
-    unsafe { transmute(ptr) }
+    raw as *mut zend_string
 }
 
 #[repr(transparent)]
