@@ -71,43 +71,44 @@ fn test_cast_option() {
 }
 
 macro_rules! test_return {
-    ($name:ident, $method:expr, $expected:literal) => {
+    ($name:ident, $method:expr, $expected_json:literal) => {
         #[test]
         fn $name() {
+            let expected = run_php(&format!(
+                "var_dump(json_decode('{}', true))",
+                $expected_json
+            ))
+            .unwrap();
             let result = run_php(&format!("var_dump({}())", $method)).unwrap();
-            assert_eq!(concat!("Command line code:1:\n", $expected), &result);
+            assert_eq!(expected, result);
         }
     };
 }
 
-test_return!(test_return_long, "return_long", "int(1)\n");
-test_return!(test_return_double, "return_double", "double(0.5)\n");
-test_return!(test_return_true, "return_true", "bool(true)\n");
-test_return!(test_return_false, "return_false", "bool(false)\n");
-test_return!(
-    test_return_string,
-    "return_string",
-    "string(16) \"some string data\"\n"
-);
+test_return!(test_return_long, "return_long", "1");
+test_return!(test_return_double, "return_double", "0.5");
+test_return!(test_return_true, "return_true", "true");
+test_return!(test_return_false, "return_false", "false");
+test_return!(test_return_string, "return_string", "\"some string data\"");
 test_return!(
     test_return_array_simple,
     "return_array_simple",
-    "array(3) {\n  [0] =>\n  int(-10)\n  [1] =>\n  int(10)\n  [2] =>\n  int(0)\n}\n"
+    "[-10, 10, 0]"
 );
 test_return!(
     test_return_array_gap,
     "return_array_gap",
-    "array(3) {\n  [0] =>\n  int(-10)\n  [1] =>\n  int(10)\n  [10] =>\n  int(0)\n}\n"
+    "{\"0\":-10,\"1\":10,\"10\":0}"
 );
 test_return!(
     test_return_array_mixed,
     "return_array_mixed",
-    "array(3) {\n  [0] =>\n  int(-10)\n  \'foo\' =>\n  int(10)\n  \'bar\' =>\n  double(0.5)\n}\n"
+    "{\"0\":-10,\"foo\":10,\"bar\":0.5}"
 );
 test_return!(
     test_return_array_nested,
     "return_array_nested",
-    "array(2) {\n  [0] =>\n  array(2) {\n    [0] =>\n    int(1)\n    [1] =>\n    int(2)\n  }\n  [1] =>\n  array(2) {\n    [0] =>\n    int(3)\n    [1] =>\n    int(4)\n  }\n}\n"
+    "[[1,2],[3,4]]"
 );
 
 #[test]
