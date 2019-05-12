@@ -1,3 +1,4 @@
+#[link(libphp)]
 use maplit::hashmap;
 use pretty_assertions::assert_eq;
 
@@ -39,6 +40,19 @@ fn cast_into_php_val() {
             (ArrayKey::Int(6), PhpVal::Long(3))
         ]),
         vec![(0u8, 1), (3, 2), (6, 3)].into()
+    );
+    assert_eq!(
+        PhpVal::Array(vec![
+            (ArrayKey::String("asd".to_string()), PhpVal::Long(1)),
+            (ArrayKey::String("foo".to_string()), PhpVal::Long(2)),
+            (ArrayKey::String("bar".to_string()), PhpVal::Long(3))
+        ]),
+        vec![
+            ("asd".to_string(), 1),
+            ("foo".to_string(), 2),
+            ("bar".to_string(), 3)
+        ]
+        .into()
     );
     assert_eq!(
         PhpVal::Array(vec![

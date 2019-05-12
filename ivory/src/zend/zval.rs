@@ -1,12 +1,12 @@
-use std::alloc::{alloc, Layout};
 use std::fmt;
 use std::fmt::Display;
 use std::intrinsics::transmute;
 use std::mem::size_of;
-use std::{ptr, str};
 
 use ivory_sys::*;
 
+use crate::zend::array::parse_zend_array;
+use crate::zend::string::{construct_zend_string, parse_zend_string};
 use crate::{ArrayKey, PhpVal};
 
 #[repr(transparent)]
@@ -58,50 +58,14 @@ impl Iterator for IntoArgIterator {
     }
 }
 
-unsafe fn zend_str_as_string(string: *const zend_string) -> String {
-    let len = (*string).len;
-    let base = string as *const u8;
-    let str_start = base.add(size_of::<ZendStringHeader>());
-
-    let slice: &[u8] = std::slice::from_raw_parts(str_start, len);
-    str::from_utf8_unchecked(slice).to_string()
-}
-
-#[repr(C)]
-pub struct ZendStringHeader {
-    gc: zend_refcounted_h,
-    h: zend_ulong,
-    len: usize,
-}
-
-#[allow(clippy::cast_ptr_alignment)] // alignment of pointer casts is guaranteed by the layout
-fn string_into_zend_str(string: String) -> *mut zend_string {
-    let len = string.len();
-
-    let header_size = size_of::<ZendStringHeader>();
-
-    let layout = Layout::from_size_align(len + header_size, size_of::<zend_string>())
-        .expect("invalid layout");
-    let raw = unsafe { alloc(layout) };
-
-    let header = ZendStringHeader {
-        gc: zend_refcounted_h {
-            refcount: 1, // ?? no clue actually,
-            u: _zend_refcounted_h__bindgen_ty_1 { type_info: 0 },
-        },
-        h: 0,
-        len,
-    };
-    unsafe {
-        ptr::write(raw as *mut ZendStringHeader, header);
-        ptr::copy(string.as_ptr(), raw.add(header_size), len);
-    };
-
-    raw as *mut zend_string
-}
-
 #[repr(transparent)]
 pub struct ZVal(zval);
+
+impl From<zval> for ZVal {
+    fn from(val: zval) -> Self {
+        ZVal(val)
+    }
+}
 
 impl ZVal {
     pub fn get_type(&self) -> ZValType {
@@ -117,27 +81,11 @@ impl ZVal {
     }
 
     pub unsafe fn as_str(&self) -> String {
-        zend_str_as_string(self.0.value.str)
+        parse_zend_string(self.0.value.str)
     }
 
     pub unsafe fn as_array(&self) -> Vec<(ArrayKey, PhpVal)> {
-        let arr = *self.0.value.arr;
-        let len = arr.nNumUsed;
-        let mut result = Vec::new();
-        for i in 0..len {
-            let elem = *arr.arData.add(i as usize);
-            let key = if elem.key.is_null() {
-                ArrayKey::Int(elem.h)
-            } else {
-                ArrayKey::String(zend_str_as_string(&*elem.key))
-            };
-            let val: PhpVal = ZVal(elem.val).as_php_val();
-            match val {
-                PhpVal::Undef => {}
-                _ => result.push((key, val)),
-            }
-        }
-        result
+        parse_zend_array(*self.0.value.arr)
     }
 
     pub fn as_php_val(&self) -> PhpVal {
@@ -186,6 +134,12 @@ impl Display for ZValType {
             ZValType::Resource => write!(f, "resource"),
             ZValType::Reference => write!(f, "reference"),
         }
+    }
+}
+
+impl From<ZValType> for u8 {
+    fn from(val: ZValType) -> Self {
+        unsafe { transmute(val) }
     }
 }
 
@@ -253,7 +207,7 @@ impl From<PhpVal> for ZVal {
             }),
             PhpVal::String(val) => ZVal(zval {
                 value: zend_value {
-                    str: string_into_zend_str(val),
+                    str: construct_zend_string(val),
                 },
                 u1: ty.into(),
                 u2: _zval_struct__bindgen_ty_2 { extra: 0 },

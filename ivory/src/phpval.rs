@@ -108,10 +108,12 @@ macro_rules! impl_from_phpval {
     };
 }
 
+impl_from_phpval!(i64, Long, isize);
 impl_from_phpval!(i64, Long, i64);
 impl_from_phpval!(i64, Long, i32);
 impl_from_phpval!(i64, Long, i16);
 impl_from_phpval!(i64, Long, i8);
+impl_from_phpval!(i64, Long, usize);
 impl_from_phpval!(i64, Long, u64);
 impl_from_phpval!(i64, Long, u32);
 impl_from_phpval!(i64, Long, u16);

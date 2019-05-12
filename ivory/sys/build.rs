@@ -168,6 +168,7 @@ fn main() {
         .whitelist_function("_zend_new_array")
         .whitelist_function("add_index_zval")
         .whitelist_function("add_assoc_zval_ex")
+        .whitelist_function("zval_ptr_dtor")
         .whitelist_type("zval")
         .whitelist_type("zend_execute_data")
         .whitelist_type("zend_module_entry")
