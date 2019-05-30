@@ -117,6 +117,19 @@ pub enum ZValType {
     Object = 8,
     Resource = 9,
     Reference = 10,
+
+    // internal types
+    ConstantAST = 11,
+    Indirect = 13,
+    Ptr = 14,
+    Err = 15,
+
+    // fake types for type hinting
+    Bool = 16,
+    Callable = 17,
+    Iterable = 18,
+    Void = 19,
+    Number = 20,
 }
 
 impl Display for ZValType {
@@ -133,6 +146,15 @@ impl Display for ZValType {
             ZValType::Object => write!(f, "object"),
             ZValType::Resource => write!(f, "resource"),
             ZValType::Reference => write!(f, "reference"),
+            ZValType::ConstantAST => write!(f, "constant ast"),
+            ZValType::Indirect => write!(f, "indirect"),
+            ZValType::Ptr => write!(f, "pointer"),
+            ZValType::Err => write!(f, "error"),
+            ZValType::Bool => write!(f, "bool"),
+            ZValType::Callable => write!(f, "callable"),
+            ZValType::Iterable => write!(f, "iterable"),
+            ZValType::Void => write!(f, "void"),
+            ZValType::Number => write!(f, "number"),
         }
     }
 }
