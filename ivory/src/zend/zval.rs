@@ -103,7 +103,7 @@ impl ZVal {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u8)]
 pub enum ZValType {
     Undef = 0,
@@ -158,6 +158,36 @@ impl Display for ZValType {
         }
     }
 }
+
+pub trait GetTypeHint {
+    fn get_type_hint() -> ZValType;
+}
+
+macro_rules! impl_get_type_hint {
+    ($type:ty, $hint:expr) => {
+        impl GetTypeHint for $type {
+            #[inline]
+            fn get_type_hint() -> ZValType {
+                $hint
+            }
+        }
+    };
+}
+
+impl_get_type_hint!(String, ZValType::String);
+impl_get_type_hint!(bool, ZValType::Bool);
+impl_get_type_hint!(f64, ZValType::Double);
+impl_get_type_hint!(f32, ZValType::Double);
+impl_get_type_hint!(u8, ZValType::Long);
+impl_get_type_hint!(u16, ZValType::Long);
+impl_get_type_hint!(u32, ZValType::Long);
+impl_get_type_hint!(u64, ZValType::Long);
+impl_get_type_hint!(usize, ZValType::Long);
+impl_get_type_hint!(i8, ZValType::Long);
+impl_get_type_hint!(i16, ZValType::Long);
+impl_get_type_hint!(i32, ZValType::Long);
+impl_get_type_hint!(i64, ZValType::Long);
+impl_get_type_hint!(isize, ZValType::Long);
 
 impl From<ZValType> for u8 {
     fn from(val: ZValType) -> Self {

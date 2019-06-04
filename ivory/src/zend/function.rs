@@ -1,3 +1,5 @@
+use crate::zend::zval::GetTypeHint;
+use crate::zend::ZValType;
 use std;
 use std::os::raw::{c_char, c_uchar, c_void};
 
@@ -6,7 +8,9 @@ use std::os::raw::{c_char, c_uchar, c_void};
 pub struct ArgInfo {
     pub name: *const c_char,
     pub class_name: *const c_char,
-    pub type_hint: c_uchar,
+    // *const c_char
+    pub type_hint: ZValType,
+    // *const c_char
     pub pass_by_reference: c_uchar,
     pub allow_null: c_uchar,
     pub is_variadic: c_uchar,
@@ -15,6 +19,7 @@ pub struct ArgInfo {
 impl ArgInfo {
     pub const fn new(
         name: *const c_char,
+        ty: ZValType,
         allow_null: bool,
         is_variadic: bool,
         by_reference: bool,
@@ -22,11 +27,35 @@ impl ArgInfo {
         ArgInfo {
             name,
             class_name: std::ptr::null(),
-            type_hint: 0,
+            type_hint: ty,
             pass_by_reference: by_reference as c_uchar,
             allow_null: allow_null as c_uchar,
             is_variadic: is_variadic as c_uchar,
         }
+    }
+
+    pub const fn arg_count(count: usize) -> Self {
+        ArgInfo::new(count as *const c_char, ZValType::Undef, false, false, false)
+    }
+
+    pub const fn from_type<T>(name: *const c_char, is_ref: bool) -> Self {
+        ArgInfo::new(name, ZValType::Undef, false, false, false)
+    }
+}
+
+pub trait GetArgInfo {
+    fn get_arg_info(name: *const c_char, is_ref: bool) -> ArgInfo;
+}
+
+impl<T: GetTypeHint> GetArgInfo for T {
+    fn get_arg_info(name: *const c_char, is_ref: bool) -> ArgInfo {
+        ArgInfo::new(name, Self::get_type_hint(), false, false, is_ref)
+    }
+}
+
+impl<T: GetTypeHint> GetArgInfo for Option<T> {
+    fn get_arg_info(name: *const c_char, is_ref: bool) -> ArgInfo {
+        ArgInfo::new(name, T::get_type_hint(), true, false, is_ref)
     }
 }
 

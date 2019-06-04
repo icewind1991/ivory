@@ -7,9 +7,7 @@ mod cache;
 use proc_macro2::{Span, TokenStream, TokenTree};
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{
-    parse_macro_input, AttributeArgs, FnArg, Ident, Item, ItemFn, LitStr, Pat, ReturnType, Type,
-};
+use syn::{parse_macro_input, AttributeArgs, FnArg, Ident, Item, ItemFn, LitStr, Pat, ReturnType, Type, parse_str};
 
 /// See the [crate documentation](index.html) for details
 #[proc_macro_attribute]
@@ -34,6 +32,7 @@ pub fn ivory_export(
 #[derive(Clone)]
 pub(crate) struct ArgumentDefinition {
     name: String,
+    ty: String,
     is_ref: bool,
 }
 
@@ -115,6 +114,7 @@ fn get_arg_info(arg: FnArg) -> (ArgumentDefinition, Type) {
                 Pat::Ident(ident_pat) => (
                     ArgumentDefinition {
                         name: ident_pat.ident.to_string(),
+                        ty: format!("{}", quote!(#arg_type)),
                         is_ref: ident_pat.by_ref.is_some(),
                     },
                     arg_type,
@@ -164,7 +164,7 @@ pub fn ivory_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             entry.set_info_func(php_module_info);
 
 
-            entry.set_functions(&IVORY_FUCTIONS);
+            entry.set_functions(&IVORY_FUNCTIONS);
 
             Box::into_raw(entry)
         }
@@ -215,7 +215,8 @@ fn get_funcs(funcs: Vec<FunctionDefinition>, span: Span) -> TokenStream {
         let arg_defs = func.args.iter().map(|arg| {
             let name = &arg.name;
             let is_ref = &arg.is_ref;
-            quote!(::ivory::zend::ArgInfo::new(::ivory::c_str!(#name), false, false, #is_ref))
+            let ty = parse_str::<Type>(&arg.ty).unwrap();
+            quote!(::ivory::zend::ArgInfo::from_type::<#ty>(::ivory::c_str!(#name), #is_ref))
         });
 
         if num_args > 0 {
@@ -223,7 +224,7 @@ fn get_funcs(funcs: Vec<FunctionDefinition>, span: Span) -> TokenStream {
                 ::ivory::zend::Function::new_with_args(
                     {concat!(#name, "\0").as_ptr() as *const ::std::os::raw::c_char},
                     #name_ident as *const ::std::os::raw::c_void,
-                    &[::ivory::zend::ArgInfo::new(#num_args as *const ::std::os::raw::c_char, false, false, false),
+                    &[::ivory::zend::ArgInfo::arg_count(#num_args),
                         #(#arg_defs),*
                     ],
                     #num_args as u32
@@ -240,7 +241,7 @@ fn get_funcs(funcs: Vec<FunctionDefinition>, span: Span) -> TokenStream {
     });
 
     quote! {
-        const IVORY_FUCTIONS: [::ivory::zend::Function; #func_count] = [
+        const IVORY_FUNCTIONS: [::ivory::zend::Function; #func_count] = [
             #(#definitions),*,
             ::ivory::zend::Function::end()
         ];
