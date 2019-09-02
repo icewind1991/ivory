@@ -53,8 +53,76 @@ fn exists(path: &str) -> bool {
     Path::new(target(path).as_str()).exists()
 }
 
-fn main() {
+fn compile_php(php_version: &str, link_static: bool) -> () {
+    println_stderr!("Setting up PHP {}", php_version);
+    run_command_or_fail("/".to_string(), "mkdir", &["-p", &target("")]);
+    run_command_or_fail(
+        target(""),
+        "git",
+        &[
+            "clone",
+            "https://github.com/php/php-src",
+            format!("--branch={}", php_version).as_str(),
+        ],
+    );
+    run_command_or_fail(
+        target("php-src"),
+        "sed",
+        &[
+            "-e",
+            "s/void zend_signal_startup/ZEND_API void zend_signal_startup/g",
+            "-ibk",
+            "Zend/zend_signal.c",
+            "Zend/zend_signal.h",
+        ],
+    );
+    run_command_or_fail(target("php-src"), "./genfiles", &[]);
+    run_command_or_fail(target("php-src"), "./buildconf", &["--force"]);
+
+    let embed_type = if link_static { "static" } else { "shared" };
+
+    #[cfg(all(target_os = "linux"))]
+    let config = &[
+        "--enable-debug",
+        &format!("--enable-embed={}", embed_type),
+        "--disable-cli",
+        "--disable-cgi",
+        "--enable-maintainer-zts",
+        // "--without-iconv",
+        "--disable-libxml",
+        "--disable-dom",
+        "--disable-xml",
+        "--disable-simplexml",
+        "--disable-xmlwriter",
+        "--disable-xmlreader",
+        // "--without-pear",
+        // "--with-libdir=lib64",
+        // "--with-pic",
+    ];
+    #[cfg(all(target_os = "macos"))]
+    let config = &[
+        "--enable-debug",
+        &format!("--enable-embed={}", embed_type),
+        "--disable-cli",
+        "--disable-cgi",
+        "--enable-maintainer-zts",
+        "--without-iconv",
+        "--disable-libxml",
+        "--disable-dom",
+        "--disable-xml",
+        "--disable-simplexml",
+        "--disable-xmlwriter",
+        "--disable-xmlreader",
+        // "--without-pear",
+        // "--with-libdir=lib64",
+        // "--with-pic",
+    ];
+    run_command_or_fail(target("php-src"), "./configure", config);
     let cpus = format!("{}", num_cpus::get());
+    run_command_or_fail(target("php-src"), "make", &["-j", cpus.as_str()]);
+}
+
+fn main() {
     #[cfg(all(target_os = "linux"))]
     let default_link_static = false;
     #[cfg(all(target_os = "macos"))]
@@ -71,75 +139,18 @@ fn main() {
         .map(|_| true)
         .unwrap_or(default_link_static && !link_dynamic);
 
-    if !exists("php-src/LICENSE") {
-        println_stderr!("Setting up PHP {}", php_version);
-        run_command_or_fail("/".to_string(), "mkdir", &["-p", &target("")]);
-        run_command_or_fail(
-            target(""),
-            "git",
-            &[
-                "clone",
-                "https://github.com/php/php-src",
-                format!("--branch={}", php_version).as_str(),
-            ],
-        );
-        run_command_or_fail(
-            target("php-src"),
-            "sed",
-            &[
-                "-e",
-                "s/void zend_signal_startup/ZEND_API void zend_signal_startup/g",
-                "-ibk",
-                "Zend/zend_signal.c",
-                "Zend/zend_signal.h",
-            ],
-        );
-        run_command_or_fail(target("php-src"), "./genfiles", &[]);
-        run_command_or_fail(target("php-src"), "./buildconf", &["--force"]);
+    let maybe_include_dir = Command::new("php-config")
+        .args(&["--include-dir"])
+        .output()
+        .map(|o| String::from_utf8(o.stdout).unwrap().trim_end().to_string())
+        .ok();
 
-        let embed_type = if link_static { "static" } else { "shared" };
-
-        #[cfg(all(target_os = "linux"))]
-        let config = &[
-            "--enable-debug",
-            &format!("--enable-embed={}", embed_type),
-            "--disable-cli",
-            "--disable-cgi",
-            "--enable-maintainer-zts",
-            // "--without-iconv",
-            "--disable-libxml",
-            "--disable-dom",
-            "--disable-xml",
-            "--disable-simplexml",
-            "--disable-xmlwriter",
-            "--disable-xmlreader",
-            // "--without-pear",
-            // "--with-libdir=lib64",
-            // "--with-pic",
-        ];
-        #[cfg(all(target_os = "macos"))]
-        let config = &[
-            "--enable-debug",
-            &format!("--enable-embed={}", embed_type),
-            "--disable-cli",
-            "--disable-cgi",
-            "--enable-maintainer-zts",
-            "--without-iconv",
-            "--disable-libxml",
-            "--disable-dom",
-            "--disable-xml",
-            "--disable-simplexml",
-            "--disable-xmlwriter",
-            "--disable-xmlreader",
-            // "--without-pear",
-            // "--with-libdir=lib64",
-            // "--with-pic",
-        ];
-        run_command_or_fail(target("php-src"), "./configure", config);
-        run_command_or_fail(target("php-src"), "make", &["-j", cpus.as_str()]);
-    }
-
-    let include_dir = target("php-src");
+    let include_dir = maybe_include_dir.unwrap_or_else(|| {
+        if !exists("php-src/LICENSE") {
+            compile_php(php_version, link_static);
+        }
+        target("php-src")
+    });
 
     let includes = ["/", "/TSRM", "/Zend", "/main"]
         .iter()
